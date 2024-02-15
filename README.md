@@ -40,11 +40,11 @@ In order to get autocomplete working in VSCode, you must first install the NPM p
 * Mac: https://nodejs.org/en/download/
 * Arch Linux: sudo pacman -S npm
 
-Once installed, open VSCode. Next, open a terminal inside VSCode
-* Terminal → New Terminal
-* Initialize npm
-    * `npm init` 
-    * You can answer these questions how you like. You can leave them as the defaults/blank if you don’t know what to put.
+~~Once installed, open VSCode. Next, open a terminal inside VSCode~~
+* ~~Terminal → New Terminal~~
+* ~~Initialize npm~~
+    * ~~`npm init`~~
+    * ~~You can answer these questions how you like. You can leave them as the defaults/blank if you don’t know what to put.~~
 * Then, you can actually install Phaser through npm
     * `npm install phaser`
 * Note that autocomplete will only work inside standalone JavaScript files. Writing JavaScript embedded in HTML files will not present you with suggestions.
