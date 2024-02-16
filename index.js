@@ -3,145 +3,227 @@
 class BearGame extends Phaser.Scene {
     /* Global members in the class */
     platforms;
-    player;
-    cursors;
-    line;
+
+    players;
+    currentPlayerIndex;
+    currentPlayer;
+    nextPlayerKey;
+
+    movementKeys;
+    indicatorLine;
+    worldPointer;
+    graphics;
 
     /* Runs only once. Used to load our assets that we need for the game */
     preload() {
-        this.load.image('sky', 'assets/sky-background.jpg');
-        this.load.image('ground', 'assets/ground.png');
-        this.load.image('player', 'assets/bear.png');
+        this.load.image('background', 'assets/background.jpg');
+        this.load.image('platform', 'assets/platform.png');
+        this.load.image('bear1', 'assets/bear.png');
         this.load.image('projectile', 'assets/grenade.png');
     }
 
-    /* Runs only once. Used to do one-time initialization */
     create() {
-        /* Load the sky background and place into game */
-        this.add.image(0, 0, 'sky')
-        .setScale(0.5)
+        this.createBackground();
+        this.createPlatforms();
+        this.createPlayers();
+
+        this.createIndicatorLineResources();
+        this.createMouseListeners();
+        this.createKeyboardKeys();
+        
+
+
+        this.setDefaultCameraBehavior();
+
+
+        
+        
+        
+    }
+
+    createBackground() {
+        this.add.image(0, -30, 'background')
+        .setScale(1)
         .setOrigin(0);
 
-        /* Static objects are those that don't move. Our platforms are an example of a good static object.
-        Store those objects in the 'platforms' group */
+        this.physics.world.setBounds(0, 0, 1252, 646);
+    }
+
+    createPlatforms() {
+        /* NOTE. Texture bugging warning. It seems like images are scaled every frame when redrawn? This 
+        can cause slight texture wobbles when there is a lot going on. Like drawing a indicatorLine every frame when 
+        the user is holding left click. It's only the one frame when starting/stopping drawing stuff. To get around it
+        maybe bake in the platforms and just invisible collision boxes? Otherwise, just keep the original 1.0 scaling of 
+        textures and make a new texture when you need something a different scale. */
         this.platforms = this.physics.add.staticGroup();
-        this.platforms.create(400, 410, 'ground');
-        this.platforms.create(10, 230, 'ground')
-        .setScale(0.6)
+        this.platforms.createMultiple({
+            key: 'platform',
+            frameQuantity: 12,
+            setXY: { x: 75, y: 635, stepX: 155 },
+            // key: 'platform',
+            // frameQuantity: 8,
+            // setXY: { x: 0, y: 645, stepX: 187 },
+            // setScale: { x: 1.2, y: 1.2 }
+        });
+
+        this.platforms.createMultiple({
+            key: 'platform',
+            frameQuantity: 4,
+            setXY: { x: 100, y: 480, stepX: 330 },
+            // setScale: { x: 0.9, y: 0.9 }
+        });
+
+        this.platforms.createMultiple({
+            key: 'platform',
+            frameQuantity: 3,
+            setXY: { x: 300, y: 330, stepX: 330 },
+            // setScale: { x: 0.9, y: 0.9 }
+        });
+
+        this.platforms.createMultiple({
+            key: 'platform',
+            frameQuantity: 2,
+            setXY: { x: 500, y: 180, stepX: 330 },
+            // setScale: { x: 0.9, y: 0.9 }
+        });
+
+        // this.platforms.getChildren().forEach((body) => {
+        //     body.refreshBody();
+        // });
+    }
+
+    createPlayers() {
+        this.players = [];
+
+        const player1 = this.physics.add.sprite(450, 400, 'bear1')
+        .setScale(0.15)
         .refreshBody();
-        this.platforms.create(700, 170, 'ground')
-        .setScale(0.5)
+        player1.setBounce(0);
+        player1.setCollideWorldBounds(true);
+        this.players.push(player1);
+
+        const player2 = this.physics.add.sprite(750, 400, 'bear1')
+        .setScale(0.10)
         .refreshBody();
+        player2.setBounce(0.4);
+        player2.setCollideWorldBounds(true);
+        player2.setTint(0xf0f0ff);
+        this.players.push(player2);
 
-        /* Create our player character */
-        this.player = this.physics.add.sprite(350, 300, 'player')
-        .setScale(0.2)
+        const player3 = this.physics.add.sprite(1050, 400, 'bear1')
+        .setScale(0.20)
         .refreshBody();
-        /* Add a little bounce for player impact on the ground */
-        this.player.setBounce(0.2);
-        /* Restrict movement to the game window. Can't go offscreen. */
-        this.player.setCollideWorldBounds(true);
+        player3.setBounce(0.2);
+        player3.setCollideWorldBounds(true);
+        this.players.push(player3);
 
-        /* Initialize arrow keys for movement. Still need to check key presses in the 'update()' function */
-        this.cursors = this.input.keyboard.createCursorKeys();
+        this.physics.add.collider(this.players, this.platforms);
+        
 
-        /* Add collision between our player, and all objects within the platforms group */
-        this.physics.add.collider(this.player, this.platforms);
+        this.currentPlayerIndex = 0;
+        this.currentPlayer = this.players[this.currentPlayerIndex];
+    }
 
-        /* This is a listener function that tracks when any mouse button is released. Execute the 
-        inner function when any mouse button is released. */
+    createIndicatorLineResources() {
+        this.indicatorLine = new Phaser.Geom.Line();
+        this.graphics = this.add.graphics({
+            lineStyle: { width: 2, color: 0xff0000 }
+        });
+    }
+
+    setDefaultCameraBehavior() {
+        this.cameras.main.setBounds(0, 0, 1252, 646);
+        this.cameras.main.startFollow(this.currentPlayer, true);
+    }
+
+    createKeyboardKeys() {
+
+
+        this.nextPlayerKey = this.input.keyboard.addKey('N');
+        this.movementKeys = this.input.keyboard.addKeys('W,UP,D,RIGHT,A,LEFT');
+    }
+
+    createMouseListeners() {
+        this.input.mouse.disableContextMenu();
+
         this.input.on('pointerup', pointer => {
-            /* Restrict the mouse release triggers to only execute on the left mouse button release */
             if (pointer.leftButtonReleased()) {
-                /* Convenient constant modifier that adjusts how hard we can throw a projectile */
-                const throw_power = 2;
-                /* Create a projectile object and set properties of it */
-                let projectile = this.physics.add.sprite(this.player.x, this.player.y, 'projectile')
-                .setScale(0.08)
-                /* Velocity is given in X and Y. We calculate the slope between two points: the player X and Y to the
-                pointer X and Y. The further the pointer is away from the player, the "harder" the projectile is thrown. 
-                How hard an projectile is throw is also determined by the constant 'throw_power' */
+                const throwPower = 2;
+                let projectile = this.physics.add.sprite(this.currentPlayer.x, this.currentPlayer.y, 'projectile')
+                .setScale(0.06)
                 .setVelocity(
-                    (pointer.x - this.player.x) * throw_power, 
-                    (pointer.y - this.player.y) * throw_power
+                    (this.input.activePointer.worldX - this.currentPlayer.x) * throwPower, 
+                    (this.input.activePointer.worldY - this.currentPlayer.y) * throwPower
                 )
-                /* The fastest an object can go in the X direction is 300. Y direction is 450. You can throw objects up 
-                much higher so that you can throw onto a higher platform. But you can't throw them super far horizontally. */
-                .setMaxVelocity(300, 450)
-                /* Every game 'step', decrease the velocity by an amount, until it reaches zero. Otherwise, objects would 
-                keep moving forever in a direction if possible. */
+                .setMaxVelocity(400, 550)
                 .setDrag(60);
 
                 /* Will disable gravity entirely for the projectiles. More for bullet-style projectiles */
-                // this.projectiles.body.allowGravity = false;
+                // projectile.body.allowGravity = false;
                 
-                /* Add collision for this projectile object and all the platforms */
                 this.physics.add.collider(projectile, this.platforms);
+                // this.physics.add.collider(projectile, this.players);
 
-                const timeout_millis = 3000;
-                /* Set a timeout that will execute a function when the timeout has elapsed. We use an anonymous function here
-                to get around not being able to pass parameters to a function (such as 'deleteProjectile()') directly. Although,
-                in this particular scenario, the function isn't needed as is more of a reminder for me that this stuff exists in JS.*/
+                const timeout_millis = 4000;
                 setTimeout(() => {
-                    /* Delete this projectile when the timeout has elapsed. This deletes the projectile from the game */
                     this.deleteProjectile(projectile);
                 }, timeout_millis);
             }
         });
     }
 
-    /* Runs once every frame. Used to do periodic checking and updating of game events. */
-    update() {
-        /* Checks if left/right arrow are being pressed. Move player left/right corresponding to the button pressed. */
-        if (this.cursors.left.isDown) {
-            this.player.setVelocityX(-160);
-        } else if (this.cursors.right.isDown) {
-            this.player.setVelocityX(160);
+    checkKeyboardInput() {
+        if (this.movementKeys.LEFT.isDown || this.movementKeys.A.isDown) {
+            this.currentPlayer.setVelocityX(-160);
+        } else if (this.movementKeys.RIGHT.isDown || this.movementKeys.D.isDown) {
+            this.currentPlayer.setVelocityX(160);
         } else {
-            /* If no button is pressed, remain still */
-            this.player.setVelocityX(0);
+            this.currentPlayer.setVelocityX(0);
         }
         
-        /* Checks if the up arrow is being pressed and if the player's bottom side is touching the ground (technically 
-            any collidable object). Without checking if they're touching the ground, they could just jump mid-air. Could
-            be useful for a double-jump mechanic */
-        if (this.cursors.up.isDown && this.player.body.touching.down) {
-            /* Set how high the player can jump based on their 'height' in the game. If you're on the bottom platform, you 
-            can jump higher than if you're on the top platform. This is to prevent the player from smacking the top of the world 
-            bounds while still ensuring they can jump to their desired target. */
-            if (this.player.y < 150) {
-                this.player.setVelocityY(-200);
-            } else if (this.player.y < 200) {
-                this.player.setVelocityY(-270);
+        if ((this.movementKeys.UP.isDown || this.movementKeys.W.isDown) && this.currentPlayer.body.touching.down) {
+            if (this.currentPlayer.y < 150) {
+                this.currentPlayer.setVelocityY(-250);
             } else {
-                this.player.setVelocityY(-330);
+                this.currentPlayer.setVelocityY(-350);
             }
         }
 
-        /* Checks if the mouse left mouse button is being pressed. */
-        if (this.input.mousePointer.leftButtonDown()) {
-            /* If our global line isn't null, delete it from the game */
-            if (this.line)
-                this.line.destroy();
+        if (Phaser.Input.Keyboard.JustDown(this.nextPlayerKey)) {
+            
+            this.currentPlayer.setVelocityX(0);
 
-                /* Draw a red line from the player to the mouse pointer. This acts as a visual indicator of how 
-                the projectile may be thrown. */
-            this.line = this.add.line(0, 0, this.player.x, this.player.y, this.input.activePointer.x, 
-                this.input.activePointer.y, 0xff0000, 1)
-                /* By default, origin is the top-left corner. By changing it to the center, we can more accurately do 
-                what we want to do and use values that make more sense to us, instead of having to calculate offsets. */
-                .setOrigin(0);
-        } else {
-            /* When our left mouse button is released, if our global line isn't null, delete it 
-            from the game */
-            if (this.line)
-                this.line.destroy();
+            let nextIndex = ++this.currentPlayerIndex;
+            if (nextIndex >= this.players.length)
+                nextIndex = 0;
+            this.currentPlayerIndex = nextIndex;
+
+            this.currentPlayer = this.players[nextIndex];
+            this.cameras.main.startFollow(this.currentPlayer, true);
         }
     }
 
+    checkMouseInput() {
+        /* Checks if the mouse left mouse button is being pressed. */
+        if (this.input.mousePointer.leftButtonDown()) {
+            this.redrawIndicatorLine();
+        } else {
+            this.graphics.clear();
+        }
+    }
 
+    update() {
+        this.checkKeyboardInput();
+        this.checkMouseInput();
+    }
 
-    /* Delete this projectile when the timeout has elapsed. This deletes the projectile from the game */
+    redrawIndicatorLine() {
+        this.graphics.clear();
+        this.input.activePointer.updateWorldPoint(this.cameras.main);
+        this.indicatorLine.setTo(this.currentPlayer.x, this.currentPlayer.y, this.input.activePointer.worldX, this.input.activePointer.worldY);
+        this.graphics.strokeLineShape(this.indicatorLine);
+    }
+
     deleteProjectile(projectile) {
         projectile.destroy()
     }
@@ -160,7 +242,11 @@ const config = {
             /* An arbitrary value that determines how strong gravity is */
             gravity: { y: 300 }
         }
-    }
+    },
+    // scale: {
+    //     mode: Phaser.Scale.FIT,
+    //     autoCenter: Phaser.Scale.CENTER_BOTH
+    // }
 };
 
 /* Create our game with our config and scene */
