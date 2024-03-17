@@ -17,7 +17,11 @@ class BearGame extends Phaser.Scene {
     /* Runs only once. Used to load our assets that we need for the game */
     preload() {
         this.load.image('background', 'assets/background.jpg');
-        this.load.image('platform', 'assets/platform.png');
+        // this.load.image('platform', 'assets/platform.png');
+        this.load.image('grass-block', 'assets/terrain/grass-block.png');
+        this.load.image('dirt-block', 'assets/terrain/dirt-block.png');
+        this.load.image('stone-block', 'assets/terrain/stone-block.png');
+        this.load.image('sand-block', 'assets/terrain/sand-block.png');
         this.load.image('bear1', 'assets/bear.png');
         this.load.image('projectile', 'assets/grenade.png');
     }
@@ -29,20 +33,22 @@ class BearGame extends Phaser.Scene {
 
         this.createIndicatorLineResources();
         this.createMouseListeners();
-        this.createKeyboardKeys();
+
+        this.nextPlayerKey = this.input.keyboard.addKey('N');
+        this.movementKeys = this.input.keyboard.addKeys('W,UP,D,RIGHT,A,LEFT');
         
-
-
-        this.setDefaultCameraBehavior();
-
-
-        
-        
+        this.cameras.main.setBounds(0, 0, 1252, 646);
+        this.cameras.main.startFollow(this.currentPlayer, true);
         
     }
 
+    update() {
+        this.checkKeyboardInput();
+        this.checkMouseInput();
+    }
+
     createBackground() {
-        this.add.image(0, -30, 'background')
+        this.add.image(0, 0, 'background')
         .setScale(1)
         .setOrigin(0);
 
@@ -57,9 +63,10 @@ class BearGame extends Phaser.Scene {
         textures and make a new texture when you need something a different scale. */
         this.platforms = this.physics.add.staticGroup();
         this.platforms.createMultiple({
-            key: 'platform',
-            frameQuantity: 12,
-            setXY: { x: 75, y: 635, stepX: 155 },
+            key: 'grass-block',
+            frameQuantity: 50,
+            setXY: { x: 0, y: 640, stepX: 26 },
+            setScale: { x: 0.1, y: 0.1 }
             // key: 'platform',
             // frameQuantity: 8,
             // setXY: { x: 0, y: 645, stepX: 187 },
@@ -67,29 +74,30 @@ class BearGame extends Phaser.Scene {
         });
 
         this.platforms.createMultiple({
-            key: 'platform',
-            frameQuantity: 4,
-            setXY: { x: 100, y: 480, stepX: 330 },
+            key: 'grass-block',
+            frameQuantity: 20,
+            setXY: { x: 520, y: 614, stepX: 26 },
+            setScale: { x: 0.1, y: 0.1 }
             // setScale: { x: 0.9, y: 0.9 }
         });
 
-        this.platforms.createMultiple({
-            key: 'platform',
-            frameQuantity: 3,
-            setXY: { x: 300, y: 330, stepX: 330 },
-            // setScale: { x: 0.9, y: 0.9 }
-        });
-
-        this.platforms.createMultiple({
-            key: 'platform',
-            frameQuantity: 2,
-            setXY: { x: 500, y: 180, stepX: 330 },
-            // setScale: { x: 0.9, y: 0.9 }
-        });
-
-        // this.platforms.getChildren().forEach((body) => {
-        //     body.refreshBody();
+        // this.platforms.createMultiple({
+        //     key: 'platform',
+        //     frameQuantity: 3,
+        //     setXY: { x: 300, y: 330, stepX: 330 },
+        //     // setScale: { x: 0.9, y: 0.9 }
         // });
+
+        // this.platforms.createMultiple({
+        //     key: 'platform',
+        //     frameQuantity: 2,
+        //     setXY: { x: 500, y: 180, stepX: 330 },
+        //     // setScale: { x: 0.9, y: 0.9 }
+        // });
+
+        this.platforms.getChildren().forEach((body) => {
+            body.refreshBody();
+        });
     }
 
     createPlayers() {
@@ -102,26 +110,27 @@ class BearGame extends Phaser.Scene {
         player1.setCollideWorldBounds(true);
         this.players.push(player1);
 
-        const player2 = this.physics.add.sprite(750, 400, 'bear1')
-        .setScale(0.10)
-        .refreshBody();
-        player2.setBounce(0.4);
-        player2.setCollideWorldBounds(true);
-        player2.setTint(0xf0f0ff);
-        this.players.push(player2);
+        // const player2 = this.physics.add.sprite(750, 400, 'bear1')
+        // .setScale(0.10)
+        // .refreshBody();
+        // player2.setBounce(0.4);
+        // player2.setCollideWorldBounds(true);
+        // player2.setTint(0xf0f0ff);
+        // this.players.push(player2);
 
-        const player3 = this.physics.add.sprite(1050, 400, 'bear1')
-        .setScale(0.20)
-        .refreshBody();
-        player3.setBounce(0.2);
-        player3.setCollideWorldBounds(true);
-        this.players.push(player3);
+        // const player3 = this.physics.add.sprite(1050, 400, 'bear1')
+        // .setScale(0.20)
+        // .refreshBody();
+        // player3.setBounce(0.2);
+        // player3.setCollideWorldBounds(true);
+        // this.players.push(player3);
 
         this.physics.add.collider(this.players, this.platforms);
         
 
         this.currentPlayerIndex = 0;
         this.currentPlayer = this.players[this.currentPlayerIndex];
+        
     }
 
     createIndicatorLineResources() {
@@ -129,18 +138,6 @@ class BearGame extends Phaser.Scene {
         this.graphics = this.add.graphics({
             lineStyle: { width: 2, color: 0xff0000 }
         });
-    }
-
-    setDefaultCameraBehavior() {
-        this.cameras.main.setBounds(0, 0, 1252, 646);
-        this.cameras.main.startFollow(this.currentPlayer, true);
-    }
-
-    createKeyboardKeys() {
-
-
-        this.nextPlayerKey = this.input.keyboard.addKey('N');
-        this.movementKeys = this.input.keyboard.addKeys('W,UP,D,RIGHT,A,LEFT');
     }
 
     createMouseListeners() {
@@ -159,9 +156,9 @@ class BearGame extends Phaser.Scene {
                 .setDrag(60);
 
                 /* Will disable gravity entirely for the projectiles. More for bullet-style projectiles */
-                // projectile.body.allowGravity = false;
+                // projectile.body.setAllowGravity(false);
                 
-                this.physics.add.collider(projectile, this.platforms);
+                this.physics.add.collider(projectile, this.platforms, this.terrainCollideCallback, this.terrainProcessCallback, this);
                 // this.physics.add.collider(projectile, this.players);
 
                 const timeout_millis = 4000;
@@ -170,6 +167,25 @@ class BearGame extends Phaser.Scene {
                 }, timeout_millis);
             }
         });
+    }
+
+    destroyCallback(object1, object2) {
+        object2.destroy();
+    }
+
+    terrainCollideCallback(object1, object2) {
+        console.log(`X: ${object1.x - 25}, Y: ${object1.y - 25}`);
+        var invis = this.physics.add.sprite(object1.x - 25, object1.y - 25);
+        invis.setCircle(50);
+        invis.body.setAllowGravity(false);
+        this.physics.add.collider(invis, this.platforms, this.destroyCallback, this.terrainProcessCallback, this);
+        // invis.destroy();
+        object1.destroy();
+        // object2.destroy();
+    }
+
+    terrainProcessCallback(object1, object2) {
+        return true;
     }
 
     checkKeyboardInput() {
@@ -212,10 +228,7 @@ class BearGame extends Phaser.Scene {
         }
     }
 
-    update() {
-        this.checkKeyboardInput();
-        this.checkMouseInput();
-    }
+    
 
     redrawIndicatorLine() {
         this.graphics.clear();
@@ -239,6 +252,7 @@ const config = {
     physics: {
         default: 'arcade',
         arcade: {
+            debug: true,
             /* An arbitrary value that determines how strong gravity is */
             gravity: { y: 300 }
         }
