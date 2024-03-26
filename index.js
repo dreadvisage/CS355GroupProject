@@ -64,10 +64,10 @@ class BearGame extends Phaser.Scene {
         textures and make a new texture when you need something a different scale. */
         this.platforms = this.physics.add.staticGroup();
         this.platforms.createMultiple({
-            key: 'grass-block',
-            frameQuantity: 50,
-            setXY: { x: 0, y: 640, stepX: 26 },
-            setScale: { x: 0.1, y: 0.1 }
+            key: 'dirt-block',
+            frameQuantity: 300,
+            setXY: { x: 0, y: 640, stepX: 5 },
+            setScale: { x: 0.025, y: 0.025 }
             // key: 'platform',
             // frameQuantity: 8,
             // setXY: { x: 0, y: 645, stepX: 187 },
@@ -75,18 +75,18 @@ class BearGame extends Phaser.Scene {
         });
 
         this.platforms.createMultiple({
-            key: 'grass-block',
-            frameQuantity: 20,
-            setXY: { x: 520, y: 614, stepX: 26 },
-            setScale: { x: 0.1, y: 0.1 }
+            key: 'dirt-block',
+            frameQuantity: 80,
+            setXY: { x: 520, y: 635, stepX: 5 },
+            setScale: { x: 0.025, y: 0.025 }
             // setScale: { x: 0.9, y: 0.9 }
         });
 
         this.platforms.createMultiple({
-            key: 'grass-block',
-            frameQuantity: 18,
-            setXY: { x: 494, y: 588, stepX: 26 },
-            setScale: { x: 0.1, y: 0.1 }
+            key: 'dirt-block',
+            frameQuantity: 60,
+            setXY: { x: 540, y: 630, stepX: 5 },
+            setScale: { x: 0.025, y: 0.025 }
             // setScale: { x: 0.9, y: 0.9 }
         });
 
@@ -272,7 +272,7 @@ const config = {
     physics: {
         default: 'arcade',
         arcade: {
-            debug: true,
+            debug: false,
             /* An arbitrary value that determines how strong gravity is */
             gravity: { y: 300 }
         }
