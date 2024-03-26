@@ -24,11 +24,18 @@ class BearGame extends Phaser.Scene {
         this.load.image('sand-block', 'assets/terrain/sand-block.png');
         this.load.image('bear1', 'assets/bear.png');
         this.load.image('projectile', 'assets/grenade.png');
+
+        this.load.image('terrain-map', 'assets/terrain-map.png');
+
     }
 
     create() {
+
+
         this.createBackground();
-        this.createPlatforms();
+
+        // this.createPlatforms();
+        this.loadTerrainMap();
         this.createPlayers();
 
         this.createIndicatorLineResources();
@@ -43,9 +50,40 @@ class BearGame extends Phaser.Scene {
     }
 
     update() {
-        console.log(`FPS: ${Math.round(game.loop.actualFps)}`);
+        // console.log(`FPS: ${Math.round(game.loop.actualFps)}`);
         this.checkKeyboardInput();
         this.checkMouseInput();
+    }
+
+    loadTerrainMap() {
+
+        // load the terrain map texture 
+        const texture = game.textures.get('terrain-map');
+        // null because we don't need to store it in the texture manager, we just need its utilities
+        const canvas = this.textures.createCanvas(null, 251, 130);
+        canvas.draw(0, 0, texture.getSourceImage());
+        canvas.update();
+        
+        this.platforms = this.physics.add.staticGroup();
+        for (var x = 0; x < 251; ++x) {
+            for (var y = 0; y < 130; ++y) {
+                const pixel = canvas.getPixel(x, y);
+                
+                // console.log(pixel);
+                
+                if (pixel.color == 7355904) { // brown color
+                    // console.log(`x: ${x}, y: ${y}, color: ${pixel.color}}`)
+                    this.platforms.create(x * 5, y * 5, 'dirt-block');
+                } else if (pixel.color == 1141788) { // green color
+                    this.platforms.create(x * 5, y * 5, 'grass-block');
+                }
+            }
+        }
+
+        // this.platforms.getChildren().forEach((body) => {
+        //     body.refreshBody();
+        // });
+        
     }
 
     createBackground() {
@@ -57,11 +95,6 @@ class BearGame extends Phaser.Scene {
     }
 
     createPlatforms() {
-        /* NOTE. Texture bugging warning. It seems like images are scaled every frame when redrawn? This 
-        can cause slight texture wobbles when there is a lot going on. Like drawing a indicatorLine every frame when 
-        the user is holding left click. It's only the one frame when starting/stopping drawing stuff. To get around it
-        maybe bake in the platforms and just invisible collision boxes? Otherwise, just keep the original 1.0 scaling of 
-        textures and make a new texture when you need something a different scale. */
         this.platforms = this.physics.add.staticGroup();
         this.platforms.createMultiple({
             key: 'dirt-block',
@@ -119,24 +152,8 @@ class BearGame extends Phaser.Scene {
         player1.setCollideWorldBounds(true);
         this.players.push(player1);
 
-        // const player2 = this.physics.add.sprite(750, 400, 'bear1')
-        // .setScale(0.10)
-        // .refreshBody();
-        // player2.setBounce(0.4);
-        // player2.setCollideWorldBounds(true);
-        // player2.setTint(0xf0f0ff);
-        // this.players.push(player2);
-
-        // const player3 = this.physics.add.sprite(1050, 400, 'bear1')
-        // .setScale(0.20)
-        // .refreshBody();
-        // player3.setBounce(0.2);
-        // player3.setCollideWorldBounds(true);
-        // this.players.push(player3);
-
         this.physics.add.collider(this.players, this.platforms);
         
-
         this.currentPlayerIndex = 0;
         this.currentPlayer = this.players[this.currentPlayerIndex];
         
@@ -250,6 +267,7 @@ class BearGame extends Phaser.Scene {
 
     
 
+    /* FIXME: using graphics to strokeLineShape causes the "pixels" to jitter. Unknown how to fix */
     redrawIndicatorLine() {
         this.graphics.clear();
         this.input.activePointer.updateWorldPoint(this.cameras.main);
@@ -277,6 +295,7 @@ const config = {
             gravity: { y: 300 }
         }
     },
+    pixelArt: true,
     // scale: {
     //     mode: Phaser.Scale.FIT,
     //     autoCenter: Phaser.Scale.CENTER_BOTH
