@@ -43,6 +43,7 @@ class BearGame extends Phaser.Scene {
     }
 
     update() {
+        console.log(`FPS: ${Math.round(game.loop.actualFps)}`);
         this.checkKeyboardInput();
         this.checkMouseInput();
     }
@@ -77,6 +78,14 @@ class BearGame extends Phaser.Scene {
             key: 'grass-block',
             frameQuantity: 20,
             setXY: { x: 520, y: 614, stepX: 26 },
+            setScale: { x: 0.1, y: 0.1 }
+            // setScale: { x: 0.9, y: 0.9 }
+        });
+
+        this.platforms.createMultiple({
+            key: 'grass-block',
+            frameQuantity: 18,
+            setXY: { x: 494, y: 588, stepX: 26 },
             setScale: { x: 0.1, y: 0.1 }
             // setScale: { x: 0.9, y: 0.9 }
         });
@@ -158,7 +167,7 @@ class BearGame extends Phaser.Scene {
                 /* Will disable gravity entirely for the projectiles. More for bullet-style projectiles */
                 // projectile.body.setAllowGravity(false);
                 
-                this.physics.add.collider(projectile, this.platforms, this.terrainCollideCallback, this.terrainProcessCallback, this);
+                this.physics.add.collider(projectile, this.platforms, this.terrainExplosionCallback, this.terrainProcessCallback, this);
                 // this.physics.add.collider(projectile, this.players);
 
                 const timeout_millis = 4000;
@@ -173,14 +182,29 @@ class BearGame extends Phaser.Scene {
         object2.destroy();
     }
 
-    terrainCollideCallback(object1, object2) {
-        console.log(`X: ${object1.x - 25}, Y: ${object1.y - 25}`);
+    terrainExplosionCallback(object1, object2) {
+        // console.log(`X: ${object1.x - 25}, Y: ${object1.y - 25}`);
         var invis = this.physics.add.sprite(object1.x - 25, object1.y - 25);
-        invis.setCircle(50);
+        invis.setCircle(60);
+        invis.setImmovable(true);
         invis.body.setAllowGravity(false);
-        this.physics.add.collider(invis, this.platforms, this.destroyCallback, this.terrainProcessCallback, this);
-        // invis.destroy();
+
+        // destroy grenade
         object1.destroy();
+
+        this.physics.add.collider(invis, this.platforms, this.destroyCallback, this.terrainProcessCallback, this);
+        
+        /* Remove the explosion radius after 2 seconds. Should be enough time to check
+        for all explosion collisions before we remove it from the scene. This is because I
+        currently don't know how to remove it only when there are no more collisions in the 
+        explosion radius */
+        const timeout_millis = 2000;
+        setTimeout(() => {
+            invis.destroy();
+        }, timeout_millis);
+
+        /* This would delete the initial point of contact, but instead we leave that responsibility
+        to the explosion radius collider */
         // object2.destroy();
     }
 
@@ -198,11 +222,7 @@ class BearGame extends Phaser.Scene {
         }
         
         if ((this.movementKeys.UP.isDown || this.movementKeys.W.isDown) && this.currentPlayer.body.touching.down) {
-            if (this.currentPlayer.y < 150) {
-                this.currentPlayer.setVelocityY(-250);
-            } else {
-                this.currentPlayer.setVelocityY(-350);
-            }
+            this.currentPlayer.setVelocityY(-250);
         }
 
         if (Phaser.Input.Keyboard.JustDown(this.nextPlayerKey)) {
