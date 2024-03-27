@@ -1,4 +1,3 @@
-
 /* Use a class to contain our particular scene for organization sake */
 class BearGame extends Phaser.Scene {
     /* Global members in the class */
@@ -35,7 +34,7 @@ class BearGame extends Phaser.Scene {
         this.createBackground();
 
         // this.createPlatforms();
-        this.loadTerrainMap();
+        this.loadTerrainMap('terrain-map', 5, 1);
         this.createPlayers();
 
         this.createIndicatorLineResources();
@@ -55,34 +54,52 @@ class BearGame extends Phaser.Scene {
         this.checkMouseInput();
     }
 
-    loadTerrainMap() {
+    loadTerrainMap(terrainMapKey, terrainPixelScale, platformScale) {
 
         // load the terrain map texture 
-        const texture = game.textures.get('terrain-map');
+        const texture = game.textures.get(terrainMapKey);
+        const img = texture.getSourceImage();
         // null because we don't need to store it in the texture manager, we just need its utilities
-        const canvas = this.textures.createCanvas(null, 251, 130);
-        canvas.draw(0, 0, texture.getSourceImage());
-        canvas.update();
+        const canvas = this.textures.createCanvas(null, img.width, img.height);
+        canvas.draw(0, 0, img);
         
+        var set = new Set();
         this.platforms = this.physics.add.staticGroup();
-        for (var x = 0; x < 251; ++x) {
-            for (var y = 0; y < 130; ++y) {
+        for (var x = 0; x < img.width; ++x) {
+            for (var y = 0; y < img.height; ++y) {
                 const pixel = canvas.getPixel(x, y);
+
+                set.add(pixel.color)
                 
-                // console.log(pixel);
-                
-                if (pixel.color == 7355904) { // brown color
-                    // console.log(`x: ${x}, y: ${y}, color: ${pixel.color}}`)
-                    this.platforms.create(x * 5, y * 5, 'dirt-block');
-                } else if (pixel.color == 1141788) { // green color
-                    this.platforms.create(x * 5, y * 5, 'grass-block');
+                var platform;
+                switch (pixel.color) {
+                    case 7355904: // brown color
+                        platform = this.platforms.create(x * terrainPixelScale, y * terrainPixelScale, 'dirt-block');
+                        break;
+                    case 1141788: // green color
+                        platform = this.platforms.create(x * terrainPixelScale, y * terrainPixelScale, 'grass-block');
+                        break;
+                    case 14729308: // sand color
+                        platform = this.platforms.create(x * terrainPixelScale, y * terrainPixelScale, 'sand-block');
+                        break;
+                    case 7632760: // gray color
+                        platform = this.platforms.create(x * terrainPixelScale, y * terrainPixelScale, 'stone-block');
+                        break;
+                    default:
+                        // don't create any collision box
                 }
+
+                if (platform)
+                    platform.setScale(platformScale);
             }
         }
 
-        // this.platforms.getChildren().forEach((body) => {
-        //     body.refreshBody();
-        // });
+        console.log(set);
+
+        // If we applied any scaling, this will update the bodies
+        this.platforms.getChildren().forEach((body) => {
+            body.refreshBody();
+        });
         
     }
 
@@ -200,8 +217,7 @@ class BearGame extends Phaser.Scene {
     }
 
     terrainExplosionCallback(object1, object2) {
-        // console.log(`X: ${object1.x - 25}, Y: ${object1.y - 25}`);
-        var invis = this.physics.add.sprite(object1.x - 25, object1.y - 25);
+        var invis = this.physics.add.sprite(object1.x - 34, object1.y - 44);
         invis.setCircle(60);
         invis.setImmovable(true);
         invis.body.setAllowGravity(false);
@@ -267,7 +283,7 @@ class BearGame extends Phaser.Scene {
 
     
 
-    /* FIXME: using graphics to strokeLineShape causes the "pixels" to jitter. Unknown how to fix */
+    /* FIXME: on some platforms, using graphics to strokeLineShape causes the "pixels" to jitter. Unknown how to fix */
     redrawIndicatorLine() {
         this.graphics.clear();
         this.input.activePointer.updateWorldPoint(this.cameras.main);
