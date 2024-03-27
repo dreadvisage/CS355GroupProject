@@ -21,6 +21,8 @@ class BearGame extends Phaser.Scene {
     indicatorLine;
     graphics;
 
+    textOverlay;
+
     preload() {
         this.load.image('background', 'assets/background.jpg');
         this.load.image('grass-block', 'assets/terrain/grass-block.png');
@@ -59,8 +61,10 @@ class BearGame extends Phaser.Scene {
         
         this.cameras.main.setBounds(0, 0, 1252, 646);
         this.cameras.main.startFollow(this.currentPlayer, true);
-        
+
+        this.textOverlay = this.add.text(300, 300, "Use the \"P\" key to cycle weapons", { font: '16px Courier', fill: '#000000' }).setOrigin(0).setScale(1);
     }
+
 
     update() {
         // console.log(`FPS: ${Math.round(game.loop.actualFps)}`);
