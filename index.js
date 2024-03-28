@@ -11,9 +11,6 @@ class BearGame extends Phaser.Scene {
     playerHealth1;
     playerHealth2;
 
-    // used to initially position weapons and their facing direction relative to the player
-    isPlayerFacingLeft;
-
     swapWeaponKey;
     weaponListIndex;
     weaponList;
@@ -85,11 +82,12 @@ class BearGame extends Phaser.Scene {
             sprite: sprite,
             health: 100,
             healthBar: healthBar,
+            // used to initially position weapons and their facing direction relative to the player
             isFacingLeft: false,
         };
 
 
-        this.players.push(playerObj);
+        this.playerObjects.push(playerObj);
     }
 
     makeBar(x, y, color) {
@@ -136,7 +134,7 @@ class BearGame extends Phaser.Scene {
         }
 
         // move health bar to player
-        this.players.forEach(obj => {
+        this.playerObjects.forEach(obj => {
             obj.healthBar.x = obj.sprite.x - 100/2;
             obj.healthBar.y = obj.sprite.y - 60;
         });
@@ -220,16 +218,17 @@ class BearGame extends Phaser.Scene {
     }
 
     createPlayers() {
-        this.players = [];
+        this.playerObjects = [];
 
         this.createPlayer(450, 420);
+        this.createPlayer(750, 200);
 
-        this.players.forEach(obj => {
+        this.playerObjects.forEach(obj => {
             this.physics.add.collider(obj.sprite, this.platforms);
         });
         
         this.currentPlayerIndex = 0;
-        this.currentPlayer = this.players[this.currentPlayerIndex].sprite;
+        this.currentPlayer = this.playerObjects[this.currentPlayerIndex].sprite;
         
     }
 
@@ -260,7 +259,7 @@ class BearGame extends Phaser.Scene {
                     // projectile.body.setAllowGravity(false);
                     
                     this.physics.add.collider(projectile, this.platforms, this.terrainExplosionCallback, this.terrainProcessCallback, this);
-                    // this.physics.add.collider(projectile, this.players);
+                    // this.physics.add.collider(projectile, this.playerObjects);
     
                     const timeout_millis = 4000;
                     setTimeout(() => {
@@ -274,7 +273,7 @@ class BearGame extends Phaser.Scene {
                 } else if (this.currentWeaponKey == 'fish-gun') {
                     const throwPower = 2;
                     var bombSpawnX;
-                    if (this.isPlayerFacingLeft) {
+                    if (this.currentPlayer.isFacingLeft) {
                         bombSpawnX = this.currentPlayer.x - 30;
                     } else {
                         bombSpawnX = this.currentPlayer.x + 30;
@@ -292,7 +291,7 @@ class BearGame extends Phaser.Scene {
                     // projectile.body.setAllowGravity(false);
                     
                     this.physics.add.collider(projectile, this.platforms, this.terrainExplosionCallback, this.terrainProcessCallback, this);
-                    // this.physics.add.collider(projectile, this.players);
+                    // this.physics.add.collider(projectile, this.playerObjects);
     
                     const timeout_millis = 4000;
                     setTimeout(() => {
@@ -312,16 +311,14 @@ class BearGame extends Phaser.Scene {
 
         for (var i = 0; i < object1.damagePlayerList.length; ++i) {
             
-            if (object1.damagePlayerList[i] == object2) {
-
-            console.log(object1.damagePlayerList[0]);
-                // object1.damagePlayerList[i][2] -= 20;
-                // if (object1.damagePlayerList[i][2] <= 0) {
-                //     this.add.text(330, 350, "YOU ARE DEAD AND GAY", { font: '20px Courier', fill: '#ff0000' }).setOrigin(0).setScale(1);
-                // }
+            if (object1.damagePlayerList[i][0].sprite === object2 && object1.damagePlayerList[i][1]) {
+                object1.damagePlayerList[i][0].health -= 20;
+                if (object1.damagePlayerList[i][0].health <= 0) {
+                    this.add.text(330, 350, "YOU ARE DEAD AND GAY", { font: '20px Courier', fill: '#ff0000' }).setOrigin(0).setScale(1);
+                }
         
-                // this.setValue(object1.damagePlayerList[i][1], object1.damagePlayerList[i][2]);
-    
+                this.setValue(object1.damagePlayerList[i][0].healthBar, object1.damagePlayerList[i][0].health);
+                object1.damagePlayerList[i][1] = false;
             }
         }
         
@@ -332,11 +329,12 @@ class BearGame extends Phaser.Scene {
         var invis = this.physics.add.sprite(object1.x - 40, object1.y - 40);
         invis.setCircle(60);
         invis.setImmovable(true);
+        invis.setPushable(false);
         invis.body.setAllowGravity(false);
 
         invis.damagePlayerList = [];
-        this.players.forEach(obj => {
-            invis.damagePlayerList.push(obj);
+        this.playerObjects.forEach(obj => {
+            invis.damagePlayerList.push([obj, true]);
         });
 
 
@@ -345,9 +343,9 @@ class BearGame extends Phaser.Scene {
         object1.destroy();
 
         this.physics.add.collider(invis, this.platforms, this.destroyTerrainCallback, this.terrainProcessCallback, this);
-        this.players.forEach(obj => {
-            console.log(obj.sprite);
-            this.physics.add.collider(invis, obj.sprite, this.damagePlayerCallback, this.terrainProcessCallback, this);
+        this.playerObjects.forEach(obj => {
+            let collider = this.physics.add.collider(invis, obj.sprite, this.damagePlayerCallback, this.terrainProcessCallback, this);
+            collider.overlapOnly = true;
         });
         
         /* Remove the explosion radius after 2 seconds. Should be enough time to check
@@ -372,7 +370,7 @@ class BearGame extends Phaser.Scene {
         if (this.movementKeys.LEFT.isDown || this.movementKeys.A.isDown) {
             this.currentPlayer.setVelocityX(-160);
             this.currentPlayer.flipX = true;
-            this.isPlayerFacingLeft = true;
+            this.currentPlayer.isFacingLeft = true;
 
             if (this.currentWeaponKey == 'fish-gun')
                 this.currentWeapon.flipX = false;
@@ -380,7 +378,7 @@ class BearGame extends Phaser.Scene {
         } else if (this.movementKeys.RIGHT.isDown || this.movementKeys.D.isDown) {
             this.currentPlayer.setVelocityX(160);
             this.currentPlayer.flipX = false;
-            this.isPlayerFacingLeft = false;
+            this.currentPlayer.isFacingLeft = false;
 
             if (this.currentWeaponKey == 'fish-gun')
                 this.currentWeapon.flipX = true;
@@ -414,7 +412,7 @@ class BearGame extends Phaser.Scene {
                     break;
                 case 'fish-gun':
                     this.currentWeapon.setScale(0.2);
-                    if (!this.isPlayerFacingLeft) {
+                    if (!this.currentPlayer.isFacingLeft) {
                         this.currentWeapon.flipX = true;
                     }
                     break;
@@ -442,11 +440,11 @@ class BearGame extends Phaser.Scene {
             this.currentPlayer.setVelocityX(0);
 
             let nextIndex = ++this.currentPlayerIndex;
-            if (nextIndex >= this.players.length)
+            if (nextIndex >= this.playerObjects.length)
                 nextIndex = 0;
             this.currentPlayerIndex = nextIndex;
 
-            this.currentPlayer = this.players[nextIndex];
+            this.currentPlayer = this.playerObjects[nextIndex].sprite;
             this.cameras.main.startFollow(this.currentPlayer, true);
         }
     }
@@ -483,7 +481,7 @@ const config = {
     physics: {
         default: 'arcade',
         arcade: {
-            debug: true,
+            debug: false,
             /* An arbitrary value that determines how strong gravity is */
             gravity: { y: 300 }
         }
