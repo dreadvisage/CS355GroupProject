@@ -1,27 +1,22 @@
+const WORLD_WIDTH = 1252;
+const WORLD_HEIGHT = 646;
+const BAR_WIDTH = 80;
+const BAR_HEIGHT = 10;
+
 /* Use a class to contain our particular scene for organization sake */
 class BearGame extends Phaser.Scene {
-    /* Global members in the class */
     platforms;
 
     players;
     currentPlayerIndex;
-    currentPlayer;
+    currentPlayerObj;
+
     nextPlayerKey;
-
-    playerHealth1;
-    playerHealth2;
-
     swapWeaponKey;
-    weaponListIndex;
-    weaponList;
-    currentWeapon;
-    currentWeaponKey;
 
     movementKeys;
     indicatorLine;
     graphics;
-
-    textOverlay;
 
     preload() {
         this.load.image('background', 'assets/background.jpg');
@@ -36,11 +31,8 @@ class BearGame extends Phaser.Scene {
     }
 
     create() {
-
-
         this.createBackground();
 
-        // this.createPlatforms();
         this.loadTerrainMap('map1', 5, 1);
         this.createPlayers();
 
@@ -50,20 +42,11 @@ class BearGame extends Phaser.Scene {
         this.swapWeaponKey = this.input.keyboard.addKey('P');
         this.nextPlayerKey = this.input.keyboard.addKey('N');
         this.movementKeys = this.input.keyboard.addKeys('W,UP,D,RIGHT,A,LEFT');
-
-        this.playerDamagedThisTurn = false;
-        this.playerHealth1 = 80;
-        this.playerHealth2 = 80;
-
-        this.weaponListIndex = 0;
-        // null means you're using your BEAR hands, lol
-        this.weaponList = [null, 'bobber-bomb', 'fish-gun'];
         
-        this.cameras.main.setBounds(0, 0, 1252, 646);
-        this.cameras.main.startFollow(this.currentPlayer, true);
+        this.cameras.main.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+        this.cameras.main.startFollow(this.currentPlayerObj.sprite, true);
 
-        this.textOverlay = this.add.text(300, 300, "Use the \"P\" key to cycle weapons", { font: '16px Courier', fill: '#000000' }).setOrigin(0).setScale(1);
-
+        this.add.text(300, 300, "Use the \"P\" key to cycle weapons", { font: '16px Courier', fill: '#000000' }).setOrigin(0).setScale(1);
         
     }
 
@@ -74,9 +57,9 @@ class BearGame extends Phaser.Scene {
         sprite.setBounce(0);
         sprite.setCollideWorldBounds(true);
 
-
-        const healthBar = this.makeBar(sprite.x - 100/2, sprite.y - 60, 0xe74c3c);
-        this.setValue(healthBar, 100);
+        // Center health bar and set it to be a little above the player's head
+        const healthBar = this.makeBar(sprite.x - BAR_WIDTH/2, sprite.y - 60, 0xe74c3c, 0x000000);
+        this.setBarValue(healthBar, 80);
 
         let playerObj = {
             sprite: sprite,
@@ -84,34 +67,32 @@ class BearGame extends Phaser.Scene {
             healthBar: healthBar,
             // used to initially position weapons and their facing direction relative to the player
             isFacingLeft: false,
+            // null means you're using your BEAR hands, lol
+            weaponList: [null, 'bobber-bomb', 'fish-gun'],
+            weaponIndex: 0,
+            weaponKey: null,
+            weapon: null,
         };
-
 
         this.playerObjects.push(playerObj);
     }
 
-    makeBar(x, y, color) {
-        //draw the bar
+    makeBar(x, y, fillColor, outlineColor) {
         let bar = this.add.graphics();
 
-        //color the bar
-        bar.fillStyle(color);
+        bar.fillStyle(fillColor);
+        bar.fillRect(0, 0, BAR_WIDTH, BAR_HEIGHT);
 
-        //fill the bar with a rectangle
-        bar.fillRect(0, 0, 100, 10);
-
-        bar.lineStyle(1, 0x000000);
-        bar.strokeRect(0, 0, 100, 10);
+        bar.lineStyle(1, outlineColor);
+        bar.strokeRect(0, 0, BAR_WIDTH, BAR_HEIGHT);
         
-        //position the bar
         bar.x = x;
         bar.y = y;
 
-        //return the bar
         return bar;
     }
-    setValue(bar,value) {
 
+    setBarValue(bar, value) {
         bar.clear();
 
         bar.fillStyle(0xe74c3c);
@@ -127,13 +108,15 @@ class BearGame extends Phaser.Scene {
         this.checkKeyboardInput();
         this.checkMouseInput();
 
-        // move weapon to player
-        if (this.currentWeapon) {
-            this.currentWeapon.x = this.currentPlayer.x;
-            this.currentWeapon.y = this.currentPlayer.y;
-        }
+        // move weapons to players
+        this.playerObjects.forEach(obj => {
+            if (obj.weapon) {
+                obj.weapon.x = obj.sprite.x;
+                obj.weapon.y = obj.sprite.y;
+            }
+        });
 
-        // move health bar to player
+        // move health bars to players
         this.playerObjects.forEach(obj => {
             obj.healthBar.x = obj.sprite.x - 100/2;
             obj.healthBar.y = obj.sprite.y - 60;
@@ -198,16 +181,12 @@ class BearGame extends Phaser.Scene {
             }
         }
 
-        // console.log(set);
-
         // If we applied any scaling, this will update the bodies
         this.platforms.getChildren().forEach((body) => {
             body.refreshBody();
         });
         
     }
-
-    
 
     createBackground() {
         this.add.image(0, 0, 'background')
@@ -228,7 +207,7 @@ class BearGame extends Phaser.Scene {
         });
         
         this.currentPlayerIndex = 0;
-        this.currentPlayer = this.playerObjects[this.currentPlayerIndex].sprite;
+        this.currentPlayerObj = this.playerObjects[this.currentPlayerIndex];
         
     }
 
@@ -244,13 +223,13 @@ class BearGame extends Phaser.Scene {
 
         this.input.on('pointerup', pointer => {
             if (pointer.leftButtonReleased()) {
-                if (this.currentWeaponKey == 'bobber-bomb') {
+                if (this.currentPlayerObj.weaponKey == 'bobber-bomb') {
                     const throwPower = 1.5;
-                    let projectile = this.physics.add.sprite(this.currentPlayer.x, this.currentPlayer.y, 'bobber-bomb')
+                    let projectile = this.physics.add.sprite(this.currentPlayerObj.sprite.x, this.currentPlayerObj.sprite.y, 'bobber-bomb')
                     .setScale(0.25)
                     .setVelocity(
-                        (this.input.activePointer.worldX - this.currentPlayer.x) * throwPower, 
-                        (this.input.activePointer.worldY - this.currentPlayer.y) * throwPower
+                        (this.input.activePointer.worldX - this.currentPlayerObj.sprite.x) * throwPower, 
+                        (this.input.activePointer.worldY - this.currentPlayerObj.sprite.y) * throwPower
                     )
                     .setMaxVelocity(400, 550)
                     .setDrag(60);
@@ -267,22 +246,22 @@ class BearGame extends Phaser.Scene {
                     }, timeout_millis);
 
                     // This is to give the illusion that we threw the bobber bomb
-                    this.currentWeapon.destroy();
-                    this.currentWeapon = null;
-                    this.currentWeaponKey = null;
-                } else if (this.currentWeaponKey == 'fish-gun') {
+                    this.currentPlayerObj.weapon.destroy();
+                    this.currentPlayerObj.weapon = null;
+                    this.currentPlayerObj.weaponKey = null;
+                } else if (this.currentPlayerObj.weaponKey == 'fish-gun') {
                     const throwPower = 2;
                     var bombSpawnX;
-                    if (this.currentPlayer.isFacingLeft) {
-                        bombSpawnX = this.currentPlayer.x - 30;
+                    if (this.currentPlayerObj.isFacingLeft) {
+                        bombSpawnX = this.currentPlayerObj.sprite.x - 30;
                     } else {
-                        bombSpawnX = this.currentPlayer.x + 30;
+                        bombSpawnX = this.currentPlayerObj.sprite.x + 30;
                     }
-                    let projectile = this.physics.add.sprite(bombSpawnX, this.currentPlayer.y, 'bobber-bomb')
+                    let projectile = this.physics.add.sprite(bombSpawnX, this.currentPlayerObj.sprite.y, 'bobber-bomb')
                     .setScale(0.25)
                     .setVelocity(
-                        (this.input.activePointer.worldX - this.currentPlayer.x) * throwPower, 
-                        (this.input.activePointer.worldY - this.currentPlayer.y) * throwPower
+                        (this.input.activePointer.worldX - this.currentPlayerObj.sprite.x) * throwPower, 
+                        (this.input.activePointer.worldY - this.currentPlayerObj.sprite.y) * throwPower
                     )
                     .setMaxVelocity(400, 550)
                     .setDrag(60);
@@ -317,7 +296,7 @@ class BearGame extends Phaser.Scene {
                     this.add.text(330, 350, "YOU ARE DEAD AND GAY", { font: '20px Courier', fill: '#ff0000' }).setOrigin(0).setScale(1);
                 }
         
-                this.setValue(object1.damagePlayerList[i][0].healthBar, object1.damagePlayerList[i][0].health);
+                this.setBarValue(object1.damagePlayerList[i][0].healthBar, object1.damagePlayerList[i][0].health);
                 object1.damagePlayerList[i][1] = false;
             }
         }
@@ -368,84 +347,77 @@ class BearGame extends Phaser.Scene {
 
     checkKeyboardInput() {
         if (this.movementKeys.LEFT.isDown || this.movementKeys.A.isDown) {
-            this.currentPlayer.setVelocityX(-160);
-            this.currentPlayer.flipX = true;
-            this.currentPlayer.isFacingLeft = true;
+            this.currentPlayerObj.sprite.setVelocityX(-160);
+            this.currentPlayerObj.sprite.flipX = true;
+            this.currentPlayerObj.isFacingLeft = true;
 
-            if (this.currentWeaponKey == 'fish-gun')
-                this.currentWeapon.flipX = false;
+            if (this.currentPlayerObj.weaponKey == 'fish-gun')
+                this.currentPlayerObj.weapon.flipX = false;
             
         } else if (this.movementKeys.RIGHT.isDown || this.movementKeys.D.isDown) {
-            this.currentPlayer.setVelocityX(160);
-            this.currentPlayer.flipX = false;
-            this.currentPlayer.isFacingLeft = false;
+            this.currentPlayerObj.sprite.setVelocityX(160);
+            this.currentPlayerObj.sprite.flipX = false;
+            this.currentPlayerObj.isFacingLeft = false;
 
-            if (this.currentWeaponKey == 'fish-gun')
-                this.currentWeapon.flipX = true;
+            if (this.currentPlayerObj.weaponKey == 'fish-gun')
+                this.currentPlayerObj.weapon.flipX = true;
         } else {
-            this.currentPlayer.setVelocityX(0);
+            this.currentPlayerObj.sprite.setVelocityX(0);
         }
         
-        if ((this.movementKeys.UP.isDown || this.movementKeys.W.isDown) && this.currentPlayer.body.touching.down) {
-            this.currentPlayer.setVelocityY(-250);
+        if ((this.movementKeys.UP.isDown || this.movementKeys.W.isDown) && this.currentPlayerObj.sprite.body.touching.down) {
+            this.currentPlayerObj.sprite.setVelocityY(-250);
         }
 
         if (Phaser.Input.Keyboard.JustDown(this.swapWeaponKey)) {
-            if (this.currentWeapon)
-                this.currentWeapon.destroy();
+            if (this.currentPlayerObj.weapon)
+                this.currentPlayerObj.weapon.destroy();
 
-            var nextIndex = this.weaponListIndex + 1;
-            if (nextIndex >= this.weaponList.length)
+            var nextIndex = this.currentPlayerObj.weaponIndex + 1;
+            if (nextIndex >= this.currentPlayerObj.weaponList.length)
                 nextIndex = 0;
-            const nextWeaponKey = this.weaponList[nextIndex];
-            this.weaponListIndex = nextIndex;
+            const nextWeaponKey = this.currentPlayerObj.weaponList[nextIndex];
+            this.currentPlayerObj.weaponIndex = nextIndex;
 
             if (nextWeaponKey) {
-                this.currentWeapon = this.physics.add.sprite(this.currentPlayer.x, this.currentPlayer.y, nextWeaponKey);
-                this.currentWeaponKey = nextWeaponKey;
+                this.currentPlayerObj.weapon = this.physics.add.sprite(this.currentPlayerObj.sprite.x, this.currentPlayerObj.sprite.y, nextWeaponKey);
+                this.currentPlayerObj.weaponKey = nextWeaponKey;
             }
                 
 
             switch (nextWeaponKey) {
                 case 'bobber-bomb':
-                    this.currentWeapon.setScale(0.25);
+                    this.currentPlayerObj.weapon.setScale(0.25);
                     break;
                 case 'fish-gun':
-                    this.currentWeapon.setScale(0.2);
-                    if (!this.currentPlayer.isFacingLeft) {
-                        this.currentWeapon.flipX = true;
+                    this.currentPlayerObj.weapon.setScale(0.2);
+                    if (!this.currentPlayerObj.isFacingLeft) {
+                        this.currentPlayerObj.weapon.flipX = true;
                     }
                     break;
                 default:
-                    this.currentWeapon = null;
-                    this.currentWeaponKey = null;
+                    this.currentPlayerObj.weapon = null;
+                    this.currentPlayerObj.weaponKey = null;
             }
             
-            if (this.currentWeapon) {
-                this.currentWeapon.refreshBody();
-                this.currentWeapon.setImmovable(true);
-                this.currentWeapon.body.setAllowGravity(false);
+            if (this.currentPlayerObj.weapon) {
+                this.currentPlayerObj.weapon.refreshBody();
+                this.currentPlayerObj.weapon.setImmovable(true);
+                this.currentPlayerObj.weapon.body.setAllowGravity(false);
             }
                 
         }
 
         if (Phaser.Input.Keyboard.JustDown(this.nextPlayerKey)) {
-            // Reset the weapon to bare hands when swapping to new player
-            if (this.currentWeapon)
-                this.currentWeapon.destroy();
-            this.currentWeapon = null;
-            this.currentWeaponKey = null;
-            this.weaponListIndex = 0;
-            
-            this.currentPlayer.setVelocityX(0);
+            this.currentPlayerObj.sprite.setVelocityX(0);
 
             let nextIndex = ++this.currentPlayerIndex;
             if (nextIndex >= this.playerObjects.length)
                 nextIndex = 0;
             this.currentPlayerIndex = nextIndex;
 
-            this.currentPlayer = this.playerObjects[nextIndex].sprite;
-            this.cameras.main.startFollow(this.currentPlayer, true);
+            this.currentPlayerObj = this.playerObjects[nextIndex];
+            this.cameras.main.startFollow(this.currentPlayerObj.sprite, true);
         }
     }
 
@@ -462,7 +434,7 @@ class BearGame extends Phaser.Scene {
     redrawIndicatorLine() {
         this.graphics.clear();
         this.input.activePointer.updateWorldPoint(this.cameras.main);
-        this.indicatorLine.setTo(this.currentPlayer.x, this.currentPlayer.y, this.input.activePointer.worldX, this.input.activePointer.worldY);
+        this.indicatorLine.setTo(this.currentPlayerObj.sprite.x, this.currentPlayerObj.sprite.y, this.input.activePointer.worldX, this.input.activePointer.worldY);
         this.graphics.strokeLineShape(this.indicatorLine);
     }
 
