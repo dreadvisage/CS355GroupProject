@@ -25,12 +25,8 @@ class BearGame extends Phaser.Scene {
 
     preload() {
         this.load.image('background', 'assets/background.jpg');
-        this.load.image('grass-block', 'assets/terrain/grass-block.png');
-        this.load.image('dirt-block', 'assets/terrain/dirt-block.png');
-        this.load.image('stone-block', 'assets/terrain/stone-block.png');
-        this.load.image('sand-block', 'assets/terrain/sand-block.png');
 
-        this.load.image('terrain-map', 'assets/terrain-map.png');
+        this.load.image('map1', 'assets/maps/map1.png');
 
         this.load.image('bear', 'assets/bear.png');
         this.load.image('bobber-bomb', 'assets/bobber-bomb.png');
@@ -45,7 +41,7 @@ class BearGame extends Phaser.Scene {
         this.createBackground();
 
         // this.createPlatforms();
-        this.loadDynamicTerrainMap('terrain-map', 5, 1);
+        this.loadTerrainMap('map1', 5, 1);
         this.createPlayers();
 
         this.createIndicatorLineResources();
