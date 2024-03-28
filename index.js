@@ -8,6 +8,9 @@ class BearGame extends Phaser.Scene {
     currentPlayer;
     nextPlayerKey;
 
+    playerHealth1;
+    playerHealth2;
+
     // used to initially position weapons and their facing direction relative to the player
     isPlayerFacingLeft;
 
@@ -51,6 +54,10 @@ class BearGame extends Phaser.Scene {
         this.nextPlayerKey = this.input.keyboard.addKey('N');
         this.movementKeys = this.input.keyboard.addKeys('W,UP,D,RIGHT,A,LEFT');
 
+        this.playerDamagedThisTurn = false;
+        this.playerHealth1 = 80;
+        this.playerHealth2 = 80;
+
         this.weaponListIndex = 0;
         // null means you're using your BEAR hands, lol
         this.weaponList = [null, 'bobber-bomb', 'fish-gun'];
@@ -59,6 +66,61 @@ class BearGame extends Phaser.Scene {
         this.cameras.main.startFollow(this.currentPlayer, true);
 
         this.textOverlay = this.add.text(300, 300, "Use the \"P\" key to cycle weapons", { font: '16px Courier', fill: '#000000' }).setOrigin(0).setScale(1);
+
+        
+    }
+
+    createPlayer(x, y) {
+        const sprite = this.physics.add.sprite(x, y, 'bear')
+        .setScale(0.18)
+        .refreshBody();
+        sprite.setBounce(0);
+        sprite.setCollideWorldBounds(true);
+
+
+        const healthBar = this.makeBar(sprite.x - 100/2, sprite.y - 60, 0xe74c3c);
+        this.setValue(healthBar, 100);
+
+        let playerObj = {
+            sprite: sprite,
+            health: 100,
+            healthBar: healthBar,
+            isFacingLeft: false,
+        };
+
+
+        this.players.push(playerObj);
+    }
+
+    makeBar(x, y, color) {
+        //draw the bar
+        let bar = this.add.graphics();
+
+        //color the bar
+        bar.fillStyle(color);
+
+        //fill the bar with a rectangle
+        bar.fillRect(0, 0, 100, 10);
+
+        bar.lineStyle(1, 0x000000);
+        bar.strokeRect(0, 0, 100, 10);
+        
+        //position the bar
+        bar.x = x;
+        bar.y = y;
+
+        //return the bar
+        return bar;
+    }
+    setValue(bar,value) {
+
+        bar.clear();
+
+        bar.fillStyle(0xe74c3c);
+        bar.fillRect(0, 0, value, 10);
+
+        bar.lineStyle(1, 0x000000);
+        bar.strokeRect(0, 0, 100, 10);
     }
 
 
@@ -72,6 +134,12 @@ class BearGame extends Phaser.Scene {
             this.currentWeapon.x = this.currentPlayer.x;
             this.currentWeapon.y = this.currentPlayer.y;
         }
+
+        // move health bar to player
+        this.players.forEach(obj => {
+            obj.healthBar.x = obj.sprite.x - 100/2;
+            obj.healthBar.y = obj.sprite.y - 60;
+        });
     }
 
     
@@ -141,6 +209,8 @@ class BearGame extends Phaser.Scene {
         
     }
 
+    
+
     createBackground() {
         this.add.image(0, 0, 'background')
         .setScale(1)
@@ -152,17 +222,14 @@ class BearGame extends Phaser.Scene {
     createPlayers() {
         this.players = [];
 
-        const player1 = this.physics.add.sprite(450, 400, 'bear')
-        .setScale(0.18)
-        .refreshBody();
-        player1.setBounce(0);
-        player1.setCollideWorldBounds(true);
-        this.players.push(player1);
+        this.createPlayer(450, 420);
 
-        this.physics.add.collider(this.players, this.platforms);
+        this.players.forEach(obj => {
+            this.physics.add.collider(obj.sprite, this.platforms);
+        });
         
         this.currentPlayerIndex = 0;
-        this.currentPlayer = this.players[this.currentPlayerIndex];
+        this.currentPlayer = this.players[this.currentPlayerIndex].sprite;
         
     }
 
@@ -207,7 +274,6 @@ class BearGame extends Phaser.Scene {
                 } else if (this.currentWeaponKey == 'fish-gun') {
                     const throwPower = 2;
                     var bombSpawnX;
-                    var bombSpawnY;
                     if (this.isPlayerFacingLeft) {
                         bombSpawnX = this.currentPlayer.x - 30;
                     } else {
@@ -241,17 +307,48 @@ class BearGame extends Phaser.Scene {
         object2.destroy();
     }
 
+    damagePlayerCallback(object1, object2) {
+        // obj2 is the player
+
+        for (var i = 0; i < object1.damagePlayerList.length; ++i) {
+            
+            if (object1.damagePlayerList[i] == object2) {
+
+            console.log(object1.damagePlayerList[0]);
+                // object1.damagePlayerList[i][2] -= 20;
+                // if (object1.damagePlayerList[i][2] <= 0) {
+                //     this.add.text(330, 350, "YOU ARE DEAD AND GAY", { font: '20px Courier', fill: '#ff0000' }).setOrigin(0).setScale(1);
+                // }
+        
+                // this.setValue(object1.damagePlayerList[i][1], object1.damagePlayerList[i][2]);
+    
+            }
+        }
+        
+    }
+
     terrainExplosionCallback(object1, object2) {
-        // the offset is to center the explosion on the sprite
+        // TODO: the offset is to center the explosion on the sprite (specifically the bobber-bomb right now)
         var invis = this.physics.add.sprite(object1.x - 40, object1.y - 40);
         invis.setCircle(60);
         invis.setImmovable(true);
         invis.body.setAllowGravity(false);
 
-        // destroy grenade
+        invis.damagePlayerList = [];
+        this.players.forEach(obj => {
+            invis.damagePlayerList.push(obj);
+        });
+
+
+
+        // destroy bobber-bomb
         object1.destroy();
 
         this.physics.add.collider(invis, this.platforms, this.destroyTerrainCallback, this.terrainProcessCallback, this);
+        this.players.forEach(obj => {
+            console.log(obj.sprite);
+            this.physics.add.collider(invis, obj.sprite, this.damagePlayerCallback, this.terrainProcessCallback, this);
+        });
         
         /* Remove the explosion radius after 2 seconds. Should be enough time to check
         for all explosion collisions before we remove it from the scene. This is because I
@@ -335,6 +432,12 @@ class BearGame extends Phaser.Scene {
         }
 
         if (Phaser.Input.Keyboard.JustDown(this.nextPlayerKey)) {
+            // Reset the weapon to bare hands when swapping to new player
+            if (this.currentWeapon)
+                this.currentWeapon.destroy();
+            this.currentWeapon = null;
+            this.currentWeaponKey = null;
+            this.weaponListIndex = 0;
             
             this.currentPlayer.setVelocityX(0);
 
@@ -380,7 +483,7 @@ const config = {
     physics: {
         default: 'arcade',
         arcade: {
-            debug: false,
+            debug: true,
             /* An arbitrary value that determines how strong gravity is */
             gravity: { y: 300 }
         }
