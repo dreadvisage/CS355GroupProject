@@ -45,7 +45,7 @@ class BearGame extends Phaser.Scene {
         this.createBackground();
 
         // this.createPlatforms();
-        this.loadTerrainMap('terrain-map', 5, 1);
+        this.loadDynamicTerrainMap('terrain-map', 5, 1);
         this.createPlayers();
 
         this.createIndicatorLineResources();
@@ -78,38 +78,57 @@ class BearGame extends Phaser.Scene {
         }
     }
 
+    
     loadTerrainMap(terrainMapKey, terrainPixelScale, platformScale) {
-        // load the terrain map texture 
+        // Load the terrain map texture 
         const texture = game.textures.get(terrainMapKey);
         const img = texture.getSourceImage();
-        // null because we don't need to store it in the texture manager, we just need its utilities
+        /* We use `null` because we don't need to store it in the texture manager, we just need 
+        the CanvasTexture function utilities */
         const canvas = this.textures.createCanvas(null, img.width, img.height);
         canvas.draw(0, 0, img);
-        
-        // var set = new Set();
+    
+        /* This Set stores the texture keys that are utilized by Phaser. Each unique pixel 
+        color from our terrain map will be stored in this Set and will serve as a cache 
+        if we already created a Phaser texture whose pixel value exists. Therefore, we're not 
+        creating a whole new texture, if it already exists.*/
+        var set = new Set();
         this.platforms = this.physics.add.staticGroup();
+        // Iterate through all the pixels in the terrain map
         for (var x = 0; x < img.width; ++x) {
             for (var y = 0; y < img.height; ++y) {
                 const pixel = canvas.getPixel(x, y);
 
-                // set.add(pixel.color)
-                
+                /* If the terrain map has a black pixel, it signifies that
+                there is no terrain at that spot */
+                if (pixel.color === 0) {
+                    continue;
+                }
+
                 var platform;
-                switch (pixel.color) {
-                    case 7355904: // brown color
-                        platform = this.platforms.create(x * terrainPixelScale, y * terrainPixelScale, 'dirt-block');
-                        break;
-                    case 1141788: // green color
-                        platform = this.platforms.create(x * terrainPixelScale, y * terrainPixelScale, 'grass-block');
-                        break;
-                    case 14729308: // sand color
-                        platform = this.platforms.create(x * terrainPixelScale, y * terrainPixelScale, 'sand-block');
-                        break;
-                    case 7632760: // gray color
-                        platform = this.platforms.create(x * terrainPixelScale, y * terrainPixelScale, 'stone-block');
-                        break;
-                    default:
-                        // don't create any collision box
+                const val = set.has(pixel.color) ? pixel.color : undefined;
+                /* If the value doesn't exist within the Set, create a new texture with that 
+                pixel color. Otherwise, just use the cached value to create the platform. */
+                if (val === undefined) {
+                    /* Create an HTML canvas that will be used as the backing for a Phaser 
+                    CanvasTexture */
+                    const htmlCanvas = document.createElement("canvas");
+                    htmlCanvas.width = terrainPixelScale;
+                    htmlCanvas.height = terrainPixelScale;
+                    const htmlCtx = htmlCanvas.getContext('2d');
+                    htmlCtx.fillStyle = `rgb(${pixel.red},${pixel.green},${pixel.blue})`;
+                    htmlCtx.fillRect(0, 0, terrainPixelScale, terrainPixelScale);
+
+                    var phaserCanvas = this.textures.createCanvas(pixel.color, terrainPixelScale, terrainPixelScale);
+                    phaserCanvas.draw(0, 0, htmlCanvas);
+
+                    /* Add the unique pixel color to our cached values, of which it is also a
+                    unique Phaser texture key */
+                    set.add(pixel.color);
+
+                    platform = this.platforms.create(x * terrainPixelScale, y * terrainPixelScale, pixel.color);
+                } else {
+                    platform = this.platforms.create(x * terrainPixelScale, y * terrainPixelScale, val);
                 }
 
                 if (platform)
