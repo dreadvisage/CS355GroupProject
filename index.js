@@ -307,7 +307,7 @@ class BearGame extends Phaser.Scene {
     
                     const timeout_millis = 4000;
                     setTimeout(() => {
-                        this.deleteProjectile(projectile);
+                        projectile.destroy();
                     }, timeout_millis);
 
                     // This is to give the illusion that we threw the bobber bomb
@@ -447,28 +447,39 @@ class BearGame extends Phaser.Scene {
                 this.currentPlayerObj.sprite.setVelocityY(-250);
             }
 
+            // If weapon swap key was pressed
             if (Phaser.Input.Keyboard.JustDown(this.swapWeaponKey)) {
+
+                /* If the weaponSprite exists, we want to destroy it because it's no longer 
+                in use and we're going to replace it with something else */
                 if (this.currentPlayerObj.weaponSprite)
                     this.currentPlayerObj.weaponSprite.destroy();
-    
+
+                // Check if the nextIndex needs to be wrapped around to the front of the array
                 var nextIndex = this.currentPlayerObj.weaponIndex + 1;
                 if (nextIndex >= this.currentPlayerObj.weaponList.length)
                     nextIndex = 0;
+                // Get next weapon key and set the corresponding weapon index in the array
                 const nextWeaponKey = this.currentPlayerObj.weaponList[nextIndex];
                 this.currentPlayerObj.weaponIndex = nextIndex;
     
+                /* If nextWeaponKey is null, then  we are using our bare hands, of which
+                currently do nothing */
                 if (nextWeaponKey) {
                     this.currentPlayerObj.weaponSprite = this.physics.add.sprite(this.currentPlayerObj.sprite.x, this.currentPlayerObj.sprite.y, nextWeaponKey);
                     this.currentPlayerObj.weaponKey = nextWeaponKey;
                 }
                     
     
+                // Weapon specific functionality
                 switch (nextWeaponKey) {
                     case 'bobber-bomb':
                         this.currentPlayerObj.weaponSprite.setScale(0.25);
                         break;
                     case 'fish-gun':
                         this.currentPlayerObj.weaponSprite.setScale(0.2);
+                        /* When the fish-gun is spawned, we need to face it in the direction 
+                        that the player is facing */
                         if (!this.currentPlayerObj.isFacingLeft) {
                             this.currentPlayerObj.weaponSprite.flipX = true;
                         }
@@ -478,6 +489,7 @@ class BearGame extends Phaser.Scene {
                         this.currentPlayerObj.weaponKey = null;
                 }
                 
+                // Make the weapon a static body
                 if (this.currentPlayerObj.weaponSprite) {
                     this.currentPlayerObj.weaponSprite.refreshBody();
                     this.currentPlayerObj.weaponSprite.setImmovable(true);
@@ -486,6 +498,7 @@ class BearGame extends Phaser.Scene {
                     
             }
     
+            // If next player key was pressed
             if (Phaser.Input.Keyboard.JustDown(this.nextPlayerKey)) {
                 this.nextPlayer();
             }
@@ -514,10 +527,6 @@ class BearGame extends Phaser.Scene {
         this.input.activePointer.updateWorldPoint(this.cameras.main);
         this.indicatorLine.setTo(this.currentPlayerObj.sprite.x, this.currentPlayerObj.sprite.y, this.input.activePointer.worldX, this.input.activePointer.worldY);
         this.graphics.strokeLineShape(this.indicatorLine);
-    }
-
-    deleteProjectile(projectile) {
-        projectile.destroy()
     }
 }
 
