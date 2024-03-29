@@ -29,7 +29,10 @@ class BearGame extends Phaser.Scene {
     swapWeaponKey;
 
     movementKeys;
+
     indicatorLine;
+    positiveAimLine;
+    negativeAimLine;
     graphics;
 
     cycleWeaponTextOverlay;
@@ -55,7 +58,7 @@ class BearGame extends Phaser.Scene {
         this.loadTerrainMap('map1', 5, 1);
         this.createPlayers();
 
-        this.createIndicatorLineResources();
+        this.createLineResources();
         this.createMouseListeners();
 
         this.swapWeaponKey = this.input.keyboard.addKey(NEXT_WEAPON_KEY);
@@ -203,6 +206,8 @@ class BearGame extends Phaser.Scene {
             healthBar: healthBar,
             // used to initially position weapons and their facing direction relative to the player
             isFacingLeft: false,
+            // we use this to stop movement when the player is aiming
+            isAiming: false,
             // null means you're using your BEAR hands, lol
             weaponList: [null, 'bobber-bomb', 'fish-gun'],
             weaponIndex: 0,
@@ -276,11 +281,14 @@ class BearGame extends Phaser.Scene {
         bar.strokeRect(0, 0, BAR_WIDTH, BAR_HEIGHT);
     }
 
-    createIndicatorLineResources() {
+    createLineResources() {
         this.indicatorLine = new Phaser.Geom.Line();
         this.graphics = this.add.graphics({
             lineStyle: { width: INDICATOR_LINE_WIDTH, color: INDICATOR_LINE_COLOR }
         });
+
+        this.positiveAimLine = new Phaser.Geom.Line();
+        this.negativeAimLine = new Phaser.Geom.Line();
     }
 
     createMouseListeners() {
@@ -342,6 +350,12 @@ class BearGame extends Phaser.Scene {
                         this.deleteProjectile(projectile);
                     }, timeout_millis);
                 }
+
+                // When the player releases left-click, reset the rotation
+                if (this.currentPlayerObj.weaponSprite) {
+                    this.currentPlayerObj.weaponSprite.rotation = 0;
+                }
+                this.currentPlayerObj.isAiming = false;
             }
         });
     }
@@ -423,25 +437,31 @@ class BearGame extends Phaser.Scene {
 
         // this.currentPlayerObj would only be null if all the players are killed?
         if (this.currentPlayerObj && this.playerObjects.length) {
-            if (this.movementKeys.LEFT.isDown || this.movementKeys.A.isDown) {
-                this.currentPlayerObj.sprite.setVelocityX(-160);
-                this.currentPlayerObj.sprite.flipX = true;
-                this.currentPlayerObj.isFacingLeft = true;
-    
-                if (this.currentPlayerObj.weaponKey == 'fish-gun')
-                    this.currentPlayerObj.weaponSprite.flipX = false;
-                
-            } else if (this.movementKeys.RIGHT.isDown || this.movementKeys.D.isDown) {
-                this.currentPlayerObj.sprite.setVelocityX(160);
-                this.currentPlayerObj.sprite.flipX = false;
-                this.currentPlayerObj.isFacingLeft = false;
-                
-    
-                if (this.currentPlayerObj.weaponKey == 'fish-gun')
-                    this.currentPlayerObj.weaponSprite.flipX = true;
+
+            if (!this.currentPlayerObj.isAiming) {
+                if (this.movementKeys.LEFT.isDown || this.movementKeys.A.isDown) {
+                    this.currentPlayerObj.sprite.setVelocityX(-160);
+                    this.currentPlayerObj.sprite.flipX = true;
+                    this.currentPlayerObj.isFacingLeft = true;
+        
+                    if (this.currentPlayerObj.weaponKey == 'fish-gun')
+                        this.currentPlayerObj.weaponSprite.flipX = false;
+                    
+                } else if (this.movementKeys.RIGHT.isDown || this.movementKeys.D.isDown) {
+                    this.currentPlayerObj.sprite.setVelocityX(160);
+                    this.currentPlayerObj.sprite.flipX = false;
+                    this.currentPlayerObj.isFacingLeft = false;
+                    
+        
+                    if (this.currentPlayerObj.weaponKey == 'fish-gun')
+                        this.currentPlayerObj.weaponSprite.flipX = true;
+                } else {
+                    this.currentPlayerObj.sprite.setVelocityX(0);
+                }
             } else {
                 this.currentPlayerObj.sprite.setVelocityX(0);
             }
+            
             
             if ((this.movementKeys.UP.isDown || this.movementKeys.W.isDown) && this.currentPlayerObj.sprite.body.touching.down) {
                 this.currentPlayerObj.sprite.setVelocityY(-250);
@@ -501,19 +521,78 @@ class BearGame extends Phaser.Scene {
         if (this.currentPlayerObj && this.playerObjects.length) {
             /* Checks if the mouse left mouse button is being pressed. */
             if (this.input.mousePointer.leftButtonDown()) {
-                this.redrawIndicatorLine();
+                // need to update the world point relative to the camera so that it's accurate when we use the point
+                this.input.activePointer.updateWorldPoint(this.cameras.main);
+                this.currentPlayerObj.isAiming = true;
+                this.redrawLines();
+                this.angleWeaponToIndicatorLine();
             } else {
                 this.graphics.clear();
             }
         }
     }
 
+    angleWeaponToIndicatorLine() {
+        if (this.currentPlayerObj.weaponSprite) {
+            const point1 = {
+                x: this.currentPlayerObj.sprite.x,
+                y: this.currentPlayerObj.sprite.y,
+            };
+            const point2 = {
+                x: this.input.activePointer.worldX,
+                y: this.input.activePointer.worldY,
+            };
+    
+            // Calculate angle between two points into radians
+            const radians = Phaser.Math.Angle.BetweenPoints(point1, point2);
+
+            // Angle the player and their weapon towards the indicator line
+            if (radians > Math.PI/2 || radians < -Math.PI/2) {
+                this.currentPlayerObj.sprite.flipX = true;
+                this.currentPlayerObj.isFacingLeft = true;
+                this.currentPlayerObj.weaponSprite.flipX = false;
+            } else {
+                this.currentPlayerObj.sprite.flipX = false;
+                this.currentPlayerObj.isFacingLeft = false;
+                this.currentPlayerObj.weaponSprite.flipX = true;
+            }
+
+            /* Since we flip the sprite based on the direction the player is traveling, we 
+            need to find the opposite angle if they are facing left*/
+            if (this.currentPlayerObj.isFacingLeft) {
+                this.currentPlayerObj.weaponSprite.rotation = radians + Math.PI;
+            } else {
+                this.currentPlayerObj.weaponSprite.rotation = radians;
+            }
+            console.log(this.currentPlayerObj.weaponSprite.rotation);
+
+    
+            // If you instead wanted to calculate angle between two points into degrees
+            // const degrees = radians * 180/Math.PI;
+            // this.currentPlayerObj.weaponSprite.angle = degrees;
+            // if (this.currentPlayerObj.isFacingLeft) {
+            //     this.currentPlayerObj.weaponSprite.angle = degrees + 180;
+            // } else {
+            //     this.currentPlayerObj.weaponSprite.angle = degrees;
+            // }
+        }
+        
+    }
+
     /* FIXME: on some platforms, using graphics to strokeLineShape causes the "pixels" to jitter. Unknown how to fix */
-    redrawIndicatorLine() {
+    redrawLines() {
         this.graphics.clear();
-        this.input.activePointer.updateWorldPoint(this.cameras.main);
-        this.indicatorLine.setTo(this.currentPlayerObj.sprite.x, this.currentPlayerObj.sprite.y, this.input.activePointer.worldX, this.input.activePointer.worldY);
+
+        const sprite = this.currentPlayerObj.sprite;
+        this.indicatorLine.setTo(sprite.x, sprite.y, this.input.activePointer.worldX, this.input.activePointer.worldY);
         this.graphics.strokeLineShape(this.indicatorLine);
+
+        this.positiveAimLine.setTo(sprite.x + 300, sprite.y - 300, sprite.x - 600, sprite.y + 600);
+        // this.graphics.strokeLineShape(this.positiveAimLine);
+
+        this.negativeAimLine.setTo(sprite.x - 300, sprite.y - 300, sprite.x + 600, sprite.y + 600);
+        // this.graphics.strokeLineShape(this.negativeAimLine);
+
     }
 
     deleteProjectile(projectile) {
