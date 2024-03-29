@@ -90,7 +90,10 @@ class BearGame extends Phaser.Scene {
 
         if (!this.playerObjects.length && this.deadTextOverlay) {
             this.deadTextOverlay.destroy();
-            this.deadTextOverlay = this.add.text(200, 350, "https://www.youtube.com/watch?v=dQw4w9WgXcQ", { font: '20px Courier', fill: '#ff0000' }).setOrigin(0).setScale(1);
+            this.deadTextOverlay = this.add.text(this.currentPlayerObj.sprite.x - 250, this.currentPlayerObj.sprite.y - BAR_DIST_ABOVE_HEAD, "https://www.youtube.com/watch?v=dQw4w9WgXcQ", { font: '20px Courier', fill: '#00ff00'}).setOrigin(0).setScale(1);
+            this.deadTextOverlay.setShadow(0, 0, '0x000000', 0, true, false);
+            this.deadTextOverlay.setStroke('0x000000', 16);
+
         }
     }
 
@@ -284,7 +287,7 @@ class BearGame extends Phaser.Scene {
         this.input.mouse.disableContextMenu();
 
         this.input.on('pointerup', pointer => {
-            if (pointer.leftButtonReleased()) {
+            if (pointer.leftButtonReleased() && this.playerObjects.length) {
                 if (this.currentPlayerObj.weaponKey == 'bobber-bomb') {
                     const throwPower = 1.5;
                     let projectile = this.physics.add.sprite(this.currentPlayerObj.sprite.x, this.currentPlayerObj.sprite.y, 'bobber-bomb')
