@@ -1,7 +1,21 @@
 const WORLD_WIDTH = 1252;
 const WORLD_HEIGHT = 646;
+
 const BAR_WIDTH = 80;
 const BAR_HEIGHT = 10;
+const BAR_DIST_ABOVE_HEAD = 60;
+const BAR_MAX_HEALTH = BAR_WIDTH;
+const BAR_FILL_COLOR = 0xe74c3c;
+const BAR_LINE_COLOR = 0x000000;
+const BAR_LINE_WIDTH = 2;
+
+const INDICATOR_LINE_WIDTH = 2;
+const INDICATOR_LINE_COLOR = 0xff0000;
+
+const BOBBER_BOMB_EXPLOSION_DMG = 20;
+
+const NEXT_PLAYER_KEY = 'P';
+const NEXT_WEAPON_KEY = 'N';
 
 /* Use a class to contain our particular scene for organization sake */
 class BearGame extends Phaser.Scene {
@@ -18,12 +32,17 @@ class BearGame extends Phaser.Scene {
     indicatorLine;
     graphics;
 
+    cycleWeaponTextOverlay;
+    cyclePlayerTextOverlay;
+    deadTextOverlay;
+
     preload() {
         this.load.image('background', 'assets/background.jpg');
 
         this.load.image('map1', 'assets/maps/map1.png');
 
-        this.load.image('bear', 'assets/bear.png');
+        this.load.image('bear1', 'assets/bear1.png');
+        this.load.image('bear2', 'assets/bear2.png');
         this.load.image('bobber-bomb', 'assets/bobber-bomb.png');
         this.load.image('fish-gun', 'assets/fish-gun.png');
         this.load.image('spear', 'assets/spear.png');
@@ -39,69 +58,16 @@ class BearGame extends Phaser.Scene {
         this.createIndicatorLineResources();
         this.createMouseListeners();
 
-        this.swapWeaponKey = this.input.keyboard.addKey('P');
-        this.nextPlayerKey = this.input.keyboard.addKey('N');
+        this.swapWeaponKey = this.input.keyboard.addKey(NEXT_WEAPON_KEY);
+        this.nextPlayerKey = this.input.keyboard.addKey(NEXT_PLAYER_KEY);
         this.movementKeys = this.input.keyboard.addKeys('W,UP,D,RIGHT,A,LEFT');
         
         this.cameras.main.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
         this.cameras.main.startFollow(this.currentPlayerObj.sprite, true);
 
-        this.add.text(300, 300, "Use the \"P\" key to cycle weapons", { font: '16px Courier', fill: '#000000' }).setOrigin(0).setScale(1);
-        
+        this.cycleWeaponTextOverlay = this.add.text(300, 300, `Use the \"${NEXT_WEAPON_KEY}\" key to cycle weapons`, { font: '16px Courier', fill: '#000000' }).setOrigin(0).setScale(1);
+        this.cyclePlayerTextOverlay = this.add.text(300, 320, `Use the \"${NEXT_PLAYER_KEY}\" key to cycle players`, { font: '16px Courier', fill: '#000000' }).setOrigin(0).setScale(1);
     }
-
-    createPlayer(x, y) {
-        const sprite = this.physics.add.sprite(x, y, 'bear')
-        .setScale(0.18)
-        .refreshBody();
-        sprite.setBounce(0);
-        sprite.setCollideWorldBounds(true);
-
-        // Center health bar and set it to be a little above the player's head
-        const healthBar = this.makeBar(sprite.x - BAR_WIDTH/2, sprite.y - 60, 0xe74c3c, 0x000000);
-        this.setBarValue(healthBar, 80);
-
-        let playerObj = {
-            sprite: sprite,
-            health: 100,
-            healthBar: healthBar,
-            // used to initially position weapons and their facing direction relative to the player
-            isFacingLeft: false,
-            // null means you're using your BEAR hands, lol
-            weaponList: [null, 'bobber-bomb', 'fish-gun'],
-            weaponIndex: 0,
-            weaponKey: null,
-            weapon: null,
-        };
-
-        this.playerObjects.push(playerObj);
-    }
-
-    makeBar(x, y, fillColor, outlineColor) {
-        let bar = this.add.graphics();
-
-        bar.fillStyle(fillColor);
-        bar.fillRect(0, 0, BAR_WIDTH, BAR_HEIGHT);
-
-        bar.lineStyle(1, outlineColor);
-        bar.strokeRect(0, 0, BAR_WIDTH, BAR_HEIGHT);
-        
-        bar.x = x;
-        bar.y = y;
-
-        return bar;
-    }
-
-    setBarValue(bar, value) {
-        bar.clear();
-
-        bar.fillStyle(0xe74c3c);
-        bar.fillRect(0, 0, value, 10);
-
-        bar.lineStyle(1, 0x000000);
-        bar.strokeRect(0, 0, 100, 10);
-    }
-
 
     update() {
         // console.log(`FPS: ${Math.round(game.loop.actualFps)}`);
@@ -110,17 +76,22 @@ class BearGame extends Phaser.Scene {
 
         // move weapons to players
         this.playerObjects.forEach(obj => {
-            if (obj.weapon) {
-                obj.weapon.x = obj.sprite.x;
-                obj.weapon.y = obj.sprite.y;
+            if (obj.weaponSprite) {
+                obj.weaponSprite.x = obj.sprite.x;
+                obj.weaponSprite.y = obj.sprite.y;
             }
         });
 
         // move health bars to players
         this.playerObjects.forEach(obj => {
-            obj.healthBar.x = obj.sprite.x - 100/2;
-            obj.healthBar.y = obj.sprite.y - 60;
+            obj.healthBar.x = obj.sprite.x - BAR_WIDTH/2;
+            obj.healthBar.y = obj.sprite.y - BAR_DIST_ABOVE_HEAD;
         });
+
+        if (!this.playerObjects.length && this.deadTextOverlay) {
+            this.deadTextOverlay.destroy();
+            this.deadTextOverlay = this.add.text(200, 350, "https://www.youtube.com/watch?v=dQw4w9WgXcQ", { font: '20px Courier', fill: '#ff0000' }).setOrigin(0).setScale(1);
+        }
     }
 
     
@@ -193,14 +164,14 @@ class BearGame extends Phaser.Scene {
         .setScale(1)
         .setOrigin(0);
 
-        this.physics.world.setBounds(0, 0, 1252, 646);
+        this.physics.world.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
     }
 
     createPlayers() {
         this.playerObjects = [];
 
-        this.createPlayer(450, 420);
-        this.createPlayer(750, 200);
+        this.createPlayer(450, 420, "bear1", "Player1");
+        this.createPlayer(750, 200, "bear2", "Player2");
 
         this.playerObjects.forEach(obj => {
             this.physics.add.collider(obj.sprite, this.platforms);
@@ -211,10 +182,101 @@ class BearGame extends Phaser.Scene {
         
     }
 
+    createPlayer(x, y, key, id) {
+        const sprite = this.physics.add.sprite(x, y, key)
+        .setScale(0.18)
+        .refreshBody();
+        sprite.setBounce(0);
+        sprite.setCollideWorldBounds(true);
+
+        // Center health bar and set it to be a little above the player's head
+        const healthBar = this.makeBar(sprite.x - BAR_WIDTH/2, sprite.y - BAR_DIST_ABOVE_HEAD, BAR_FILL_COLOR, BAR_LINE_COLOR);
+        this.setBarValue(healthBar, BAR_MAX_HEALTH);
+
+        let playerObj = {
+            id: id,
+            sprite: sprite,
+            health: BAR_MAX_HEALTH,
+            healthBar: healthBar,
+            // used to initially position weapons and their facing direction relative to the player
+            isFacingLeft: false,
+            // null means you're using your BEAR hands, lol
+            weaponList: [null, 'bobber-bomb', 'fish-gun'],
+            weaponIndex: 0,
+            weaponKey: null,
+            weaponSprite: null,
+        };
+
+        this.playerObjects.push(playerObj);
+    }
+
+    nextPlayer() {
+        this.currentPlayerObj.sprite.setVelocityX(0);
+
+        if (this.playerObjects.length) {
+            let nextIndex = ++this.currentPlayerIndex;
+            if (nextIndex >= this.playerObjects.length)
+                nextIndex = 0;
+            this.currentPlayerIndex = nextIndex;
+    
+            this.currentPlayerObj = this.playerObjects[nextIndex];
+            this.cameras.main.startFollow(this.currentPlayerObj.sprite, true);
+        } else {
+            this.cameras.main.stopFollow();
+            this.currentPlayerObj = null;
+        }
+        
+    }
+
+    killPlayer(playerObj) {
+
+        playerObj.health = 0;
+        const idx = this.playerObjects.findIndex(obj => obj === playerObj);
+
+        // need to go to the next player if the player kills themselves
+        if (this.currentPlayerObj === playerObj) {
+            this.nextPlayer();
+        }
+
+        const obj = this.playerObjects[idx];
+        obj.sprite.destroy();
+        obj.healthBar.destroy();
+        if (obj.weaponSprite)
+            obj.weaponSprite.destroy();
+        
+        // delete player from player objects array
+        this.playerObjects.splice(idx, 1);
+    }
+
+    makeBar(x, y, fillColor, outlineColor) {
+        let bar = this.add.graphics();
+
+        bar.fillStyle(fillColor);
+        bar.fillRect(0, 0, BAR_WIDTH, BAR_HEIGHT);
+
+        bar.lineStyle(1, outlineColor);
+        bar.strokeRect(0, 0, BAR_WIDTH, BAR_HEIGHT);
+        
+        bar.x = x;
+        bar.y = y;
+
+        return bar;
+    }
+
+    setBarValue(bar, value) {
+        bar.clear();
+
+        bar.fillStyle(BAR_FILL_COLOR);
+        bar.fillRect(0, 0, value, BAR_HEIGHT);
+
+        bar.lineStyle(BAR_LINE_WIDTH, BAR_LINE_COLOR);
+        bar.strokeRect(0, 0, BAR_WIDTH, BAR_HEIGHT);
+    }
+
     createIndicatorLineResources() {
         this.indicatorLine = new Phaser.Geom.Line();
         this.graphics = this.add.graphics({
-            lineStyle: { width: 2, color: 0xff0000 }
+            lineStyle: { width: INDICATOR_LINE_WIDTH, color: INDICATOR_LINE_COLOR }
         });
     }
 
@@ -246,8 +308,8 @@ class BearGame extends Phaser.Scene {
                     }, timeout_millis);
 
                     // This is to give the illusion that we threw the bobber bomb
-                    this.currentPlayerObj.weapon.destroy();
-                    this.currentPlayerObj.weapon = null;
+                    this.currentPlayerObj.weaponSprite.destroy();
+                    this.currentPlayerObj.weaponSprite = null;
                     this.currentPlayerObj.weaponKey = null;
                 } else if (this.currentPlayerObj.weaponKey == 'fish-gun') {
                     const throwPower = 2;
@@ -289,19 +351,26 @@ class BearGame extends Phaser.Scene {
         // obj2 is the player
 
         for (var i = 0; i < object1.damagePlayerList.length; ++i) {
-            
-            if (object1.damagePlayerList[i][0].sprite === object2 && object1.damagePlayerList[i][1]) {
-                object1.damagePlayerList[i][0].health -= 20;
-                if (object1.damagePlayerList[i][0].health <= 0) {
-                    this.add.text(330, 350, "YOU ARE DEAD AND GAY", { font: '20px Courier', fill: '#ff0000' }).setOrigin(0).setScale(1);
+            const playerObj = object1.damagePlayerList[i][0];
+            if (playerObj.sprite === object2 && object1.damagePlayerList[i][1]) {
+                const newHealth = playerObj.health - BOBBER_BOMB_EXPLOSION_DMG;
+                if (newHealth <= 0) {
+                    this.killPlayer(playerObj);
+                    
+                    if (!this.deadTextOverlay)
+                        this.deadTextOverlay = this.add.text(310, 350, `${playerObj.id} IS DEAD AND GAY`, { font: '20px Courier', fill: '#ff0000' }).setOrigin(0).setScale(1);
+                } else {
+                    playerObj.health = newHealth;
                 }
         
-                this.setBarValue(object1.damagePlayerList[i][0].healthBar, object1.damagePlayerList[i][0].health);
+                this.setBarValue(playerObj.healthBar, playerObj.health);
                 object1.damagePlayerList[i][1] = false;
             }
         }
         
     }
+
+
 
     terrainExplosionCallback(object1, object2) {
         // TODO: the offset is to center the explosion on the sprite (specifically the bobber-bomb right now)
@@ -313,10 +382,9 @@ class BearGame extends Phaser.Scene {
 
         invis.damagePlayerList = [];
         this.playerObjects.forEach(obj => {
+            // the player object and a boolean that represents if this player hasn't been damaged by this particular explosion
             invis.damagePlayerList.push([obj, true]);
         });
-
-
 
         // destroy bobber-bomb
         object1.destroy();
@@ -331,7 +399,10 @@ class BearGame extends Phaser.Scene {
         for all explosion collisions before we remove it from the scene. This is because I
         currently don't know how to remove it only when there are no more collisions in the 
         explosion radius */
-        const timeout_millis = 2000;
+        /* FIXME: Say there are multiple explosions, and destroyed terrain causes the player to fall into the radius of a previous explosion. 
+        just by falling into that explosion radius, they may take damage even though they weren't hit by the initial explosion. A short timeout 
+        also has issues. IDK the best way to fix. */
+        const timeout_millis = 100;
         setTimeout(() => {
             invis.destroy();
         }, timeout_millis);
@@ -346,87 +417,91 @@ class BearGame extends Phaser.Scene {
     }
 
     checkKeyboardInput() {
-        if (this.movementKeys.LEFT.isDown || this.movementKeys.A.isDown) {
-            this.currentPlayerObj.sprite.setVelocityX(-160);
-            this.currentPlayerObj.sprite.flipX = true;
-            this.currentPlayerObj.isFacingLeft = true;
 
-            if (this.currentPlayerObj.weaponKey == 'fish-gun')
-                this.currentPlayerObj.weapon.flipX = false;
+        // this.currentPlayerObj would only be null if all the players are killed?
+        if (this.currentPlayerObj && this.playerObjects.length) {
+            if (this.movementKeys.LEFT.isDown || this.movementKeys.A.isDown) {
+                this.currentPlayerObj.sprite.setVelocityX(-160);
+                this.currentPlayerObj.sprite.flipX = true;
+                this.currentPlayerObj.isFacingLeft = true;
+    
+                if (this.currentPlayerObj.weaponKey == 'fish-gun')
+                    this.currentPlayerObj.weaponSprite.flipX = false;
+                
+            } else if (this.movementKeys.RIGHT.isDown || this.movementKeys.D.isDown) {
+                this.currentPlayerObj.sprite.setVelocityX(160);
+                this.currentPlayerObj.sprite.flipX = false;
+                this.currentPlayerObj.isFacingLeft = false;
+                
+    
+                if (this.currentPlayerObj.weaponKey == 'fish-gun')
+                    this.currentPlayerObj.weaponSprite.flipX = true;
+            } else {
+                this.currentPlayerObj.sprite.setVelocityX(0);
+            }
             
-        } else if (this.movementKeys.RIGHT.isDown || this.movementKeys.D.isDown) {
-            this.currentPlayerObj.sprite.setVelocityX(160);
-            this.currentPlayerObj.sprite.flipX = false;
-            this.currentPlayerObj.isFacingLeft = false;
+            if ((this.movementKeys.UP.isDown || this.movementKeys.W.isDown) && this.currentPlayerObj.sprite.body.touching.down) {
+                this.currentPlayerObj.sprite.setVelocityY(-250);
+            }
 
-            if (this.currentPlayerObj.weaponKey == 'fish-gun')
-                this.currentPlayerObj.weapon.flipX = true;
-        } else {
-            this.currentPlayerObj.sprite.setVelocityX(0);
+            if (Phaser.Input.Keyboard.JustDown(this.swapWeaponKey)) {
+                if (this.currentPlayerObj.weaponSprite)
+                    this.currentPlayerObj.weaponSprite.destroy();
+    
+                var nextIndex = this.currentPlayerObj.weaponIndex + 1;
+                if (nextIndex >= this.currentPlayerObj.weaponList.length)
+                    nextIndex = 0;
+                const nextWeaponKey = this.currentPlayerObj.weaponList[nextIndex];
+                this.currentPlayerObj.weaponIndex = nextIndex;
+    
+                if (nextWeaponKey) {
+                    this.currentPlayerObj.weaponSprite = this.physics.add.sprite(this.currentPlayerObj.sprite.x, this.currentPlayerObj.sprite.y, nextWeaponKey);
+                    this.currentPlayerObj.weaponKey = nextWeaponKey;
+                }
+                    
+    
+                switch (nextWeaponKey) {
+                    case 'bobber-bomb':
+                        this.currentPlayerObj.weaponSprite.setScale(0.25);
+                        break;
+                    case 'fish-gun':
+                        this.currentPlayerObj.weaponSprite.setScale(0.2);
+                        if (!this.currentPlayerObj.isFacingLeft) {
+                            this.currentPlayerObj.weaponSprite.flipX = true;
+                        }
+                        break;
+                    default:
+                        this.currentPlayerObj.weaponSprite = null;
+                        this.currentPlayerObj.weaponKey = null;
+                }
+                
+                if (this.currentPlayerObj.weaponSprite) {
+                    this.currentPlayerObj.weaponSprite.refreshBody();
+                    this.currentPlayerObj.weaponSprite.setImmovable(true);
+                    this.currentPlayerObj.weaponSprite.body.setAllowGravity(false);
+                }
+                    
+            }
+    
+            if (Phaser.Input.Keyboard.JustDown(this.nextPlayerKey)) {
+                this.nextPlayer();
+            }
+    
         }
+
         
-        if ((this.movementKeys.UP.isDown || this.movementKeys.W.isDown) && this.currentPlayerObj.sprite.body.touching.down) {
-            this.currentPlayerObj.sprite.setVelocityY(-250);
-        }
-
-        if (Phaser.Input.Keyboard.JustDown(this.swapWeaponKey)) {
-            if (this.currentPlayerObj.weapon)
-                this.currentPlayerObj.weapon.destroy();
-
-            var nextIndex = this.currentPlayerObj.weaponIndex + 1;
-            if (nextIndex >= this.currentPlayerObj.weaponList.length)
-                nextIndex = 0;
-            const nextWeaponKey = this.currentPlayerObj.weaponList[nextIndex];
-            this.currentPlayerObj.weaponIndex = nextIndex;
-
-            if (nextWeaponKey) {
-                this.currentPlayerObj.weapon = this.physics.add.sprite(this.currentPlayerObj.sprite.x, this.currentPlayerObj.sprite.y, nextWeaponKey);
-                this.currentPlayerObj.weaponKey = nextWeaponKey;
-            }
-                
-
-            switch (nextWeaponKey) {
-                case 'bobber-bomb':
-                    this.currentPlayerObj.weapon.setScale(0.25);
-                    break;
-                case 'fish-gun':
-                    this.currentPlayerObj.weapon.setScale(0.2);
-                    if (!this.currentPlayerObj.isFacingLeft) {
-                        this.currentPlayerObj.weapon.flipX = true;
-                    }
-                    break;
-                default:
-                    this.currentPlayerObj.weapon = null;
-                    this.currentPlayerObj.weaponKey = null;
-            }
-            
-            if (this.currentPlayerObj.weapon) {
-                this.currentPlayerObj.weapon.refreshBody();
-                this.currentPlayerObj.weapon.setImmovable(true);
-                this.currentPlayerObj.weapon.body.setAllowGravity(false);
-            }
-                
-        }
-
-        if (Phaser.Input.Keyboard.JustDown(this.nextPlayerKey)) {
-            this.currentPlayerObj.sprite.setVelocityX(0);
-
-            let nextIndex = ++this.currentPlayerIndex;
-            if (nextIndex >= this.playerObjects.length)
-                nextIndex = 0;
-            this.currentPlayerIndex = nextIndex;
-
-            this.currentPlayerObj = this.playerObjects[nextIndex];
-            this.cameras.main.startFollow(this.currentPlayerObj.sprite, true);
-        }
+        
     }
 
     checkMouseInput() {
-        /* Checks if the mouse left mouse button is being pressed. */
-        if (this.input.mousePointer.leftButtonDown()) {
-            this.redrawIndicatorLine();
-        } else {
-            this.graphics.clear();
+        // this.currentPlayerObj would only be null if all the players are killed?
+        if (this.currentPlayerObj && this.playerObjects.length) {
+            /* Checks if the mouse left mouse button is being pressed. */
+            if (this.input.mousePointer.leftButtonDown()) {
+                this.redrawIndicatorLine();
+            } else {
+                this.graphics.clear();
+            }
         }
     }
 
