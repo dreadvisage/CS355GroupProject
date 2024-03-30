@@ -15,7 +15,11 @@ const INDICATOR_LINE_COLOR = 0xff0000;
 const BOBBER_BOMB_EXPLOSION_DMG = 20;
 
 const NEXT_PLAYER_KEY = 'P';
-const NEXT_WEAPON_KEY = 'N';
+const NEXT_WEAPON_KEY = 'B';
+
+
+const RESET_PLAYER_MILLIS = 1000;
+const OUT_OF_BOUNDS_INTERVAL_MILLIS = 500;
 
 // 0.5 is enough to climb 2 pixels high but not 3 pixels
 // 0.6 is enough to climb 3 pixels
@@ -28,6 +32,9 @@ class BearGame extends Phaser.Scene {
     players;
     currentPlayerIndex;
     currentPlayerObj;
+
+    /* This is used to disable user interaction with the game. Such as 
+    when a projectile is in-flight and we want to wait for it to land */
     disableInteraction;
 
     nextPlayerKey;
@@ -37,6 +44,8 @@ class BearGame extends Phaser.Scene {
 
     indicatorLine;
     graphics;
+
+    intervalCheck;
 
     cycleWeaponTextOverlay;
     cyclePlayerTextOverlay;
@@ -96,14 +105,6 @@ class BearGame extends Phaser.Scene {
             obj.healthBar.x = obj.sprite.x - BAR_WIDTH/2;
             obj.healthBar.y = obj.sprite.y - BAR_DIST_ABOVE_HEAD;
         });
-
-        if (!this.playerObjects.length && this.deadTextOverlay) {
-            this.deadTextOverlay.destroy();
-            this.deadTextOverlay = this.add.text(this.currentPlayerObj.sprite.x - 250, this.currentPlayerObj.sprite.y - BAR_DIST_ABOVE_HEAD, "https://www.youtube.com/watch?v=dQw4w9WgXcQ", { font: '20px Courier', fill: '#00ff00'}).setOrigin(0).setScale(1);
-            this.deadTextOverlay.setShadow(0, 0, '0x000000', 0, true, false);
-            this.deadTextOverlay.setStroke('0x000000', 16);
-
-        }
     }
 
     
@@ -185,15 +186,17 @@ class BearGame extends Phaser.Scene {
         this.createPlayer(450, 420, "bear1", "Player1");
         this.createPlayer(750, 100, "bear2", "Player2");
 
+        // make each player able to collide with the platforms
         this.playerObjects.forEach(obj => {
             this.physics.add.collider(obj.sprite, this.platforms);
         });
         
+        // set current player to be the first in the list
         this.currentPlayerIndex = 0;
         this.currentPlayerObj = this.playerObjects[this.currentPlayerIndex];
-        
     }
 
+    // Key is the texture key. ID is the player "name"
     createPlayer(x, y, key, id) {
         const sprite = this.physics.add.sprite(x, y, key)
         .setScale(0.18)
@@ -205,6 +208,7 @@ class BearGame extends Phaser.Scene {
         const healthBar = this.makeBar(sprite.x - BAR_WIDTH/2, sprite.y - BAR_DIST_ABOVE_HEAD, BAR_FILL_COLOR, BAR_LINE_COLOR);
         this.setBarValue(healthBar, BAR_MAX_HEALTH);
 
+        // Player object
         let playerObj = {
             id: id,
             sprite: sprite,
@@ -224,6 +228,9 @@ class BearGame extends Phaser.Scene {
         this.playerObjects.push(playerObj);
     }
 
+    /* If possible, this will set the current player to the next player in the list. 
+    If there are no players in the list (such as being all killed), this will set
+    the current player to null */
     nextPlayer() {
         this.currentPlayerObj.sprite.setVelocityX(0);
 
@@ -292,10 +299,6 @@ class BearGame extends Phaser.Scene {
         this.graphics = this.add.graphics({
             lineStyle: { width: INDICATOR_LINE_WIDTH, color: INDICATOR_LINE_COLOR }
         });
-
-        this.playerObjects.forEach(obj => {
-            this.physics.add.collider(obj.sprite, this.zones);
-        })
     }
 
     createMouseListeners() {
@@ -314,29 +317,28 @@ class BearGame extends Phaser.Scene {
                         )
                         .setMaxVelocity(400, 550)
                         .setDrag(60);
+                        this.cameras.main.startFollow(projectile, true);
         
                         /* Will disable gravity entirely for the projectiles. More for bullet-style projectiles */
                         // projectile.body.setAllowGravity(false);
                         
                         this.physics.add.collider(projectile, this.platforms, this.terrainExplosionCallback, this.terrainProcessCallback, this);
                         // this.physics.add.collider(projectile, this.playerObjects);
-        
-                        const timeout_millis = 4000;
-                        setTimeout(() => {
-                            this.deleteProjectile(projectile);
-                        }, timeout_millis);
     
                         // This is to give the illusion that we threw the bobber bomb
                         this.currentPlayerObj.weaponSprite.setVisible(false);
+
+                        this.intervalCheck = setInterval(() => {
+                            // If Overlaps returns false, then the projectile is out of bounds
+                            let isNotOutOfBounds = Phaser.Geom.Rectangle.Overlaps(this.physics.world.bounds, projectile.getBounds());
+                            if (!isNotOutOfBounds) {
+                                clearInterval(this.intervalCheck);
+                                this.resetPlayer();
+                            }
+                        }, OUT_OF_BOUNDS_INTERVAL_MILLIS);
                     } else if (this.currentPlayerObj.weaponKey == 'fish-gun') {
                         const throwPower = 2;
-                        var bombSpawnX;
-                        if (this.currentPlayerObj.isFacingLeft) {
-                            bombSpawnX = this.currentPlayerObj.sprite.x - 30;
-                        } else {
-                            bombSpawnX = this.currentPlayerObj.sprite.x + 30;
-                        }
-                        let projectile = this.physics.add.sprite(bombSpawnX, this.currentPlayerObj.sprite.y, 'bobber-bomb')
+                        let projectile = this.physics.add.sprite(this.currentPlayerObj.sprite.x, this.currentPlayerObj.sprite.y, 'bobber-bomb')
                         .setScale(0.25)
                         .setVelocity(
                             (this.input.activePointer.worldX - this.currentPlayerObj.sprite.x) * throwPower, 
@@ -344,6 +346,7 @@ class BearGame extends Phaser.Scene {
                         )
                         .setMaxVelocity(400, 550)
                         .setDrag(60);
+                        this.cameras.main.startFollow(projectile, true);
         
                         /* Will disable gravity entirely for the projectiles. More for bullet-style projectiles */
                         // projectile.body.setAllowGravity(false);
@@ -351,25 +354,22 @@ class BearGame extends Phaser.Scene {
                         this.physics.add.collider(projectile, this.platforms, this.terrainExplosionCallback, this.terrainProcessCallback, this);
                         // this.physics.add.collider(projectile, this.playerObjects);
         
-                        const timeout_millis = 4000;
-                        setTimeout(() => {
-                            this.deleteProjectile(projectile);
-                        }, timeout_millis);
+                        this.intervalCheck = setInterval(() => {
+                            // If Overlaps returns false, then the projectile is out of bounds
+                            let isNotOutOfBounds = Phaser.Geom.Rectangle.Overlaps(this.physics.world.bounds, projectile.getBounds());
+                            if (!isNotOutOfBounds) {
+                                clearInterval(this.intervalCheck);
+                                this.resetPlayer();
+                            }
+                        }, OUT_OF_BOUNDS_INTERVAL_MILLIS);
                     }
     
+                    /* When left-button is released, we disable user interaction until a projectile collides with 
+                    terrain, or is found to be out of bounds during an interval check. */
                     this.currentPlayerObj.isAiming = false
                     if (this.currentPlayerObj.weaponSprite != null) {
                         this.disableUserInteraction = true;
                         this.graphics.clear();
-                        setTimeout(() => {
-                            if (this.currentPlayerObj.weaponSprite) {
-                                this.currentPlayerObj.weaponSprite.rotation = 0;
-                            }
-                            /* Specifically, this is for the bobber-bomb because we setVisible to false to give
-                            the illusion that we threw it */
-                            this.currentPlayerObj.weaponSprite.setVisible(true);
-                            this.disableUserInteraction = false;
-                        }, 1000);
                     }
                     
                 }
@@ -380,6 +380,25 @@ class BearGame extends Phaser.Scene {
 
     destroyTerrainCallback(object1, object2) {
         object2.destroy();
+        this.resetPlayer();
+    }
+
+    /* This will reset the player by panning the camera to the current player. When done panning, user interaction will be enabled 
+    and other things needed to set the player back to a "normal" state of play. */
+    resetPlayer() {
+        this.cameras.main.stopFollow();
+        this.cameras.main.pan(this.currentPlayerObj.sprite.x, this.currentPlayerObj.sprite.y, RESET_PLAYER_MILLIS);
+        setTimeout(() => {
+            if (this.currentPlayerObj.weaponSprite) {
+                this.currentPlayerObj.weaponSprite.rotation = 0;
+                /* Specifically, this is for the bobber-bomb because we setVisible to false to give
+                the illusion that we threw it */
+                this.currentPlayerObj.weaponSprite.setVisible(true);
+            }
+            
+            this.disableUserInteraction = false;
+            this.cameras.main.startFollow(this.currentPlayerObj.sprite, true);
+        }, RESET_PLAYER_MILLIS);
     }
 
     damagePlayerCallback(object1, object2) {
@@ -393,7 +412,7 @@ class BearGame extends Phaser.Scene {
                     this.killPlayer(playerObj);
                     
                     if (!this.deadTextOverlay)
-                        this.deadTextOverlay = this.add.text(310, 350, `${playerObj.id} IS DEAD AND GAY`, { font: '20px Courier', fill: '#ff0000' }).setOrigin(0).setScale(1);
+                        this.deadTextOverlay = this.add.text(360, 350, `${playerObj.id} IS DEAD`, { font: '20px Courier', fill: '#ff0000' }).setOrigin(0).setScale(1);
                 } else {
                     playerObj.health = newHealth;
                 }
@@ -410,7 +429,6 @@ class BearGame extends Phaser.Scene {
         var invis = this.physics.add.sprite(object1.x - 40, object1.y - 40);
         invis.setCircle(60);
         invis.setImmovable(true);
-        invis.setPushable(false);
         invis.body.setAllowGravity(false);
 
         invis.damagePlayerList = [];
@@ -450,7 +468,6 @@ class BearGame extends Phaser.Scene {
     }
 
     checkKeyboardInput() {
-
         if (!this.disableUserInteraction) {
             // this.currentPlayerObj would only be null if all the players are killed?
             if (this.currentPlayerObj && this.playerObjects.length) {
@@ -575,7 +592,7 @@ class BearGame extends Phaser.Scene {
                 y: this.input.activePointer.worldY,
             };
     
-            // Calculate angle between two points into radians
+            // Calculate angle between two points in radians
             const radians = Phaser.Math.Angle.BetweenPoints(point1, point2);
 
             // Angle the player and their weapon towards the indicator line
@@ -596,16 +613,6 @@ class BearGame extends Phaser.Scene {
             } else {
                 this.currentPlayerObj.weaponSprite.rotation = radians;
             }
-
-    
-            // If you instead wanted to calculate angle between two points into degrees
-            // const degrees = radians * 180/Math.PI;
-            // this.currentPlayerObj.weaponSprite.angle = degrees;
-            // if (this.currentPlayerObj.isFacingLeft) {
-            //     this.currentPlayerObj.weaponSprite.angle = degrees + 180;
-            // } else {
-            //     this.currentPlayerObj.weaponSprite.angle = degrees;
-            // }
         }
         
     }
@@ -618,10 +625,6 @@ class BearGame extends Phaser.Scene {
         this.indicatorLine.setTo(sprite.x, sprite.y, this.input.activePointer.worldX, this.input.activePointer.worldY);
         this.graphics.strokeLineShape(this.indicatorLine);
 
-    }
-
-    deleteProjectile(projectile) {
-        projectile.destroy()
     }
 }
 
