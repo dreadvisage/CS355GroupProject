@@ -46,9 +46,11 @@ class BearGame extends Phaser.Scene {
     graphics;
 
     intervalCheck;
+    isCancelThrow;
 
     cycleWeaponTextOverlay;
     cyclePlayerTextOverlay;
+    cancelAttackTextOverlay;
     deadTextOverlay;
     
     preload() {
@@ -79,10 +81,12 @@ class BearGame extends Phaser.Scene {
         this.movementKeys = this.input.keyboard.addKeys('W,UP,D,RIGHT,A,LEFT');
 
         this.disableUserInteraction = false;
+        this.isCancelAttack = false;
         
         this.cameras.main.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
         this.cameras.main.startFollow(this.currentPlayerObj.sprite, true);
 
+        this.cancelAttackTextOverlay = this.add.text(150, 340, `When holding left-click, you can right-click to cancel your attack`, { font: '16px Courier', fill: '#000000' }).setOrigin(0).setScale(1);
         this.cycleWeaponTextOverlay = this.add.text(300, 300, `Use the \"${NEXT_WEAPON_KEY}\" key to cycle weapons`, { font: '16px Courier', fill: '#000000' }).setOrigin(0).setScale(1);
         this.cyclePlayerTextOverlay = this.add.text(300, 320, `Use the \"${NEXT_PLAYER_KEY}\" key to cycle players`, { font: '16px Courier', fill: '#000000' }).setOrigin(0).setScale(1);
     }
@@ -296,7 +300,7 @@ class BearGame extends Phaser.Scene {
 
     createLineResources() {
         this.indicatorLine = new Phaser.Geom.Line();
-        this.graphics = this.add.graphics({
+        this.indicatorLineGraphics = this.add.graphics({
             lineStyle: { width: INDICATOR_LINE_WIDTH, color: INDICATOR_LINE_COLOR }
         });
     }
@@ -306,7 +310,9 @@ class BearGame extends Phaser.Scene {
 
         this.input.on('pointerup', pointer => {
             if (!this.disableUserInteraction) {
-                if (pointer.leftButtonReleased() && this.playerObjects.length) {
+                if (this.isCancelAttack && !pointer.leftButtonDown() && !pointer.rightButtonDown()) {
+                    this.isCancelAttack = false;
+                } else if (pointer.leftButtonReleased() && this.playerObjects.length && this.currentPlayerObj.sprite.body.touching.down) {
                     if (this.currentPlayerObj.weaponKey == 'bobber-bomb') {
                         const throwPower = 1.5;
                         let projectile = this.physics.add.sprite(this.currentPlayerObj.sprite.x, this.currentPlayerObj.sprite.y, 'bobber-bomb')
@@ -333,7 +339,7 @@ class BearGame extends Phaser.Scene {
                             let isNotOutOfBounds = Phaser.Geom.Rectangle.Overlaps(this.physics.world.bounds, projectile.getBounds());
                             if (!isNotOutOfBounds) {
                                 clearInterval(this.intervalCheck);
-                                this.resetPlayer();
+                                this.resetPlayerFromProjectile();
                             }
                         }, OUT_OF_BOUNDS_INTERVAL_MILLIS);
                     } else if (this.currentPlayerObj.weaponKey == 'fish-gun') {
@@ -359,7 +365,7 @@ class BearGame extends Phaser.Scene {
                             let isNotOutOfBounds = Phaser.Geom.Rectangle.Overlaps(this.physics.world.bounds, projectile.getBounds());
                             if (!isNotOutOfBounds) {
                                 clearInterval(this.intervalCheck);
-                                this.resetPlayer();
+                                this.resetPlayerFromProjectile();
                             }
                         }, OUT_OF_BOUNDS_INTERVAL_MILLIS);
                     }
@@ -369,7 +375,7 @@ class BearGame extends Phaser.Scene {
                     this.currentPlayerObj.isAiming = false
                     if (this.currentPlayerObj.weaponSprite != null) {
                         this.disableUserInteraction = true;
-                        this.graphics.clear();
+                        this.indicatorLineGraphics.clear();
                     }
                     
                 }
@@ -380,12 +386,12 @@ class BearGame extends Phaser.Scene {
 
     destroyTerrainCallback(object1, object2) {
         object2.destroy();
-        this.resetPlayer();
+        this.resetPlayerFromProjectile();
     }
 
     /* This will reset the player by panning the camera to the current player. When done panning, user interaction will be enabled 
     and other things needed to set the player back to a "normal" state of play. */
-    resetPlayer() {
+    resetPlayerFromProjectile() {
         this.cameras.main.stopFollow();
         this.cameras.main.pan(this.currentPlayerObj.sprite.x, this.currentPlayerObj.sprite.y, RESET_PLAYER_MILLIS);
         setTimeout(() => {
@@ -412,7 +418,7 @@ class BearGame extends Phaser.Scene {
                     this.killPlayer(playerObj);
                     
                     if (!this.deadTextOverlay)
-                        this.deadTextOverlay = this.add.text(360, 350, `${playerObj.id} IS DEAD`, { font: '20px Courier', fill: '#ff0000' }).setOrigin(0).setScale(1);
+                        this.deadTextOverlay = this.add.text(360, 360, `${playerObj.id} IS DEAD`, { font: '20px Courier', fill: '#ff0000' }).setOrigin(0).setScale(1);
                 } else {
                     playerObj.health = newHealth;
                 }
@@ -503,15 +509,15 @@ class BearGame extends Phaser.Scene {
                         this.currentPlayerObj.sprite.setVelocityX(0);
                         // this.currentPlayerObj.sprite.setVelocityY(0);
                     }
+
+                    if ((this.movementKeys.UP.isDown || this.movementKeys.W.isDown) && this.currentPlayerObj.sprite.body.touching.down) {
+                        this.currentPlayerObj.sprite.setVelocityY(-250);
+                    }
                 } else {
                     this.currentPlayerObj.sprite.setVelocityX(0);
                 }
                 
-                
-                if ((this.movementKeys.UP.isDown || this.movementKeys.W.isDown) && this.currentPlayerObj.sprite.body.touching.down) {
-                    this.currentPlayerObj.sprite.setVelocityY(-250);
-                }
-
+            
                 if (Phaser.Input.Keyboard.JustDown(this.swapWeaponKey)) {
                     if (this.currentPlayerObj.weaponSprite)
                         this.currentPlayerObj.weaponSprite.destroy();
@@ -566,15 +572,22 @@ class BearGame extends Phaser.Scene {
         if (!this.disableUserInteraction) {
             // this.currentPlayerObj would only be null if all the players are killed?
             if (this.currentPlayerObj && this.playerObjects.length) {
-                /* Checks if the mouse left mouse button is being pressed. */
-                if (this.input.mousePointer.leftButtonDown()) {
+                if (this.input.mousePointer.leftButtonDown() && this.input.mousePointer.rightButtonDown()) {
+                    this.currentPlayerObj.isAiming = false;
+                    if (this.currentPlayerObj.weaponSprite) {
+                        this.currentPlayerObj.weaponSprite.rotation = 0;
+                    }
+                    this.disableUserInteraction = false;
+                    this.isCancelAttack = true;
+                    this.indicatorLineGraphics.clear();
+                } else if (!this.isCancelAttack && this.input.mousePointer.leftButtonDown() && this.currentPlayerObj.sprite.body.touching.down) {
                     // need to update the world point relative to the camera so that it's accurate when we use the point
                     this.input.activePointer.updateWorldPoint(this.cameras.main);
                     this.currentPlayerObj.isAiming = true;
                     this.redrawLines();
                     this.rotateWeaponToIndicatorLine();
                 } else {
-                    this.graphics.clear();
+                    this.indicatorLineGraphics.clear();
                 }
             }
         }
@@ -619,11 +632,11 @@ class BearGame extends Phaser.Scene {
 
     /* FIXME: on some platforms, using graphics to strokeLineShape causes the "pixels" to jitter. Unknown how to fix */
     redrawLines() {
-        this.graphics.clear();
+        this.indicatorLineGraphics.clear();
 
         const sprite = this.currentPlayerObj.sprite;
         this.indicatorLine.setTo(sprite.x, sprite.y, this.input.activePointer.worldX, this.input.activePointer.worldY);
-        this.graphics.strokeLineShape(this.indicatorLine);
+        this.indicatorLineGraphics.strokeLineShape(this.indicatorLine);
 
     }
 }
