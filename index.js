@@ -100,8 +100,19 @@ class BearGame extends Phaser.Scene {
         // move weapons to players
         this.playerObjects.forEach(obj => {
             if (obj.weaponSprite) {
-                obj.weaponSprite.x = obj.sprite.x;
-                obj.weaponSprite.y = obj.sprite.y;
+                if (obj.weaponKey == 'spear') {
+                    // if (obj.isFacingLeft) {
+                    //     obj.weaponSprite.x = obj.sprite.x - 15;
+                    // } else {
+                    //     obj.weaponSprite.x = obj.sprite.x + 15;
+                    // }
+                    obj.weaponSprite.x = obj.sprite.x;
+                    obj.weaponSprite.y = obj.sprite.y;
+                } else {
+                    obj.weaponSprite.x = obj.sprite.x;
+                    obj.weaponSprite.y = obj.sprite.y;
+                }
+                
             }
         });
 
@@ -225,7 +236,7 @@ class BearGame extends Phaser.Scene {
             // we use this to stop movement when the player is aiming
             isAiming: false,
             // null means you're using your BEAR hands, lol
-            weaponList: [null, 'bobber-bomb', 'fish-gun', "ak-47"],
+            weaponList: [null, 'bobber-bomb', 'fish-gun', "ak-47", 'spear'],
             weaponIndex: 0,
             weaponKey: null,
             weaponSprite: null,
@@ -402,6 +413,33 @@ class BearGame extends Phaser.Scene {
                                 this.resetPlayerFromProjectile();
                             }
                         }, OUT_OF_BOUNDS_INTERVAL_MILLIS);
+                    } else if (this.currentPlayerObj.weaponKey == 'spear') {
+
+                        const angle = Phaser.Geom.Line.Angle(this.indicatorLine);
+                        const point = {
+                            x: this.currentPlayerObj.sprite.x + 10*angle,
+                            y: this.currentPlayerObj.sprite.y + 10*angle
+                        };
+                        console.log(`Point: (${point.x},${point.y})`);
+
+                        let projectile = this.physics.add.sprite(point.x, point.y, 'bobber-bomb')
+                        .setScale(0.2)
+                        // .setVelocity(
+                        //     this.input.activePointer.worldX - this.currentPlayerObj.sprite.x, 
+                        //     this.input.activePointer.worldY - this.currentPlayerObj.sprite.y
+                        // )
+        
+                        /* Will disable gravity entirely for the projectiles. More for bullet-style projectiles */
+                        projectile.body.setAllowGravity(false);
+                        
+                        // this.physics.add.collider(projectile, this.platforms, this.bulletDamageCallback, this.terrainProcessCallback, this);
+                        // this.playerObjects.forEach(obj => {
+                        //     this.physics.add.collider(projectile, obj.sprite, this.bulletDamageCallback, this.terrainProcessCallback, this);
+                        // });
+
+                        
+
+    
                     }
     
                     /* When left-button is released, we disable user interaction until a projectile collides with 
@@ -550,7 +588,9 @@ class BearGame extends Phaser.Scene {
                             this.currentPlayerObj.sprite.y -= PLAYER_INCLINE_CLIMB_DIST;
                         }
             
-                        if (this.currentPlayerObj.weaponKey == 'fish-gun' || this.currentPlayerObj.weaponKey == 'ak-47')
+                        if (this.currentPlayerObj.weaponKey == 'fish-gun' 
+                        || this.currentPlayerObj.weaponKey == 'ak-47'
+                        || this.currentPlayerObj.weaponKey == 'spear')
                             this.currentPlayerObj.weaponSprite.flipX = true;
                         
                     } else if (this.movementKeys.RIGHT.isDown || this.movementKeys.D.isDown) {
@@ -563,7 +603,9 @@ class BearGame extends Phaser.Scene {
                             this.currentPlayerObj.sprite.y -= PLAYER_INCLINE_CLIMB_DIST;
                         }
             
-                        if (this.currentPlayerObj.weaponKey == 'fish-gun' || this.currentPlayerObj.weaponKey == 'ak-47')
+                        if (this.currentPlayerObj.weaponKey == 'fish-gun' 
+                        || this.currentPlayerObj.weaponKey == 'ak-47'
+                        || this.currentPlayerObj.weaponKey == 'spear')
                             this.currentPlayerObj.weaponSprite.flipX = false;
                     } else {
                         this.currentPlayerObj.sprite.setVelocityX(0);
@@ -605,6 +647,12 @@ class BearGame extends Phaser.Scene {
                             }
                             break;
                         case 'ak-47':
+                            this.currentPlayerObj.weaponSprite.setScale(0.25);
+                            if (this.currentPlayerObj.isFacingLeft) {
+                                this.currentPlayerObj.weaponSprite.flipX = true;
+                            }
+                            break;
+                        case 'spear':
                             this.currentPlayerObj.weaponSprite.setScale(0.25);
                             if (this.currentPlayerObj.isFacingLeft) {
                                 this.currentPlayerObj.weaponSprite.flipX = true;
