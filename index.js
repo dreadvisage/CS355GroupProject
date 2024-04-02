@@ -766,7 +766,11 @@ class BearGame extends Phaser.Scene {
             }
     
         } else {
-            this.currentPlayerObj.sprite.setVelocityX(0);
+            // FIXME. Ideally, I would set the this.currentPlayerObj to null to indicate there
+            // are no more available players
+            if (this.currentPlayerObj.sprite.body) {
+                this.currentPlayerObj.sprite.setVelocityX(0);
+            }
         }
 
         
