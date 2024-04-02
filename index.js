@@ -24,7 +24,7 @@ const OUT_OF_BOUNDS_INTERVAL_MILLIS = 500;
 
 // 0.5 is enough to climb 2 pixels high but not 3 pixels
 // 0.6 is enough to climb 3 pixels
-const PLAYER_INCLINE_CLIMB_DIST = 0.5;
+const PLAYER_INCLINE_CLIMB_DIST = 1;
 
 /* Use a class to contain our particular scene for organization sake */
 class BearGame extends Phaser.Scene {
@@ -222,6 +222,8 @@ class BearGame extends Phaser.Scene {
         sprite.setBounce(0);
         sprite.setCollideWorldBounds(true);
         sprite.setPushable(false);
+        // slows down the player if they are "pushed" away
+        sprite.setDrag(50);
 
         // Center health bar and set it to be a little above the player's head
         const healthBar = this.makeBar(sprite.x - BAR_WIDTH/2, sprite.y - BAR_DIST_ABOVE_HEAD, BAR_FILL_COLOR, BAR_LINE_COLOR);
@@ -593,12 +595,27 @@ class BearGame extends Phaser.Scene {
         such as the spear, we want to handle those differently elsewhere */
         if (this.currentPlayerObj.weaponKey != 'spear') {
             this.resetPlayerFromProjectile(RESET_PLAYER_MILLIS, RESET_PLAYER_DELAY_MILLIS);
+        } else {
+            // Calculates Spear knock back
+            if (object2.body) {
+                const pushBackPoint = {
+                    x: object1.x,
+                    y: object1.y
+                };
+                const playerPoint = {
+                    x: object2.x,
+                    y: object2.y
+                };
+                const angle = Phaser.Math.Angle.BetweenPoints(pushBackPoint, playerPoint);
+                object2.body.velocity.y -= Math.sin(angle) * 200;
+                object2.body.velocity.x += Math.cos(angle) * 100;
+            }
         }
 
     }
 
     /* Used in combination with terrainExplosionCallback */
-    damagePlayerCallback(object1, object2) {
+    explosionDamagePlayerCallback(object1, object2) {
         // obj2 is the player
 
         for (var i = 0; i < object1.damagePlayerList.length; ++i) {
@@ -640,7 +657,7 @@ class BearGame extends Phaser.Scene {
 
         this.physics.add.collider(invis, this.platforms, this.destroyTerrainCallback, this.terrainProcessCallback, this);
         this.playerObjects.forEach(obj => {
-            let collider = this.physics.add.collider(invis, obj.sprite, this.damagePlayerCallback, this.terrainProcessCallback, this);
+            let collider = this.physics.add.collider(invis, obj.sprite, this.explosionDamagePlayerCallback, this.terrainProcessCallback, this);
             collider.overlapOnly = true;
         });
         
