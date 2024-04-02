@@ -77,6 +77,8 @@ class BearGame extends Phaser.Scene {
         this.createLineResources();
         this.createMouseListeners();
 
+        this.stopWeaponMove = false;
+
         this.swapWeaponKey = this.input.keyboard.addKey(NEXT_WEAPON_KEY);
         this.nextPlayerKey = this.input.keyboard.addKey(NEXT_PLAYER_KEY);
         this.movementKeys = this.input.keyboard.addKeys('W,UP,D,RIGHT,A,LEFT');
@@ -106,8 +108,11 @@ class BearGame extends Phaser.Scene {
                     // } else {
                     //     obj.weaponSprite.x = obj.sprite.x + 15;
                     // }
-                    obj.weaponSprite.x = obj.sprite.x;
-                    obj.weaponSprite.y = obj.sprite.y;
+                    if (!this.stopWeaponMove) {
+
+                        obj.weaponSprite.x = obj.sprite.x;
+                        obj.weaponSprite.y = obj.sprite.y;
+                    }
                 } else {
                     obj.weaponSprite.x = obj.sprite.x;
                     obj.weaponSprite.y = obj.sprite.y;
@@ -330,6 +335,7 @@ class BearGame extends Phaser.Scene {
                         const throwPower = 1.5;
                         let projectile = this.physics.add.sprite(this.currentPlayerObj.sprite.x, this.currentPlayerObj.sprite.y, 'bobber-bomb')
                         .setScale(0.25)
+                        .setMaxVelocity(400)
                         .setVelocity(
                             (this.input.activePointer.worldX - this.currentPlayerObj.sprite.x) * throwPower, 
                             (this.input.activePointer.worldY - this.currentPlayerObj.sprite.y) * throwPower
@@ -358,9 +364,15 @@ class BearGame extends Phaser.Scene {
                             }
                         }, OUT_OF_BOUNDS_INTERVAL_MILLIS);
                     } else if (this.currentPlayerObj.weaponKey == 'fish-gun') {
+                        const unit_vector = new Phaser.Math.Vector2(
+                            this.input.activePointer.worldX - this.currentPlayerObj.sprite.x, 
+                            this.input.activePointer.worldY - this.currentPlayerObj.sprite.y)
+                            .normalize();
+                            
                         const throwPower = 2;
                         let projectile = this.physics.add.sprite(this.currentPlayerObj.sprite.x, this.currentPlayerObj.sprite.y, 'bobber-bomb')
                         .setScale(0.25)
+                        .setMaxVelocity(550)
                         .setVelocity(
                             (this.input.activePointer.worldX - this.currentPlayerObj.sprite.x) * throwPower, 
                             (this.input.activePointer.worldY - this.currentPlayerObj.sprite.y) * throwPower
@@ -386,22 +398,27 @@ class BearGame extends Phaser.Scene {
                             }
                         }, OUT_OF_BOUNDS_INTERVAL_MILLIS);
                     } else if (this.currentPlayerObj.weaponKey == 'ak-47') {
+                        const unit_vector = new Phaser.Math.Vector2(
+                            this.input.activePointer.worldX - this.currentPlayerObj.sprite.x, 
+                            this.input.activePointer.worldY - this.currentPlayerObj.sprite.y)
+                            .normalize();
+
                         // If the bullet is going too fast, it may not collide with a player?
-                        const throwPower = 2;
+                        const throwPower = 1000;
                         let projectile = this.physics.add.sprite(this.currentPlayerObj.sprite.x, this.currentPlayerObj.sprite.y, 'bobber-bomb')
                         .setScale(0.1)
                         .setVelocity(
-                            (this.input.activePointer.worldX - this.currentPlayerObj.sprite.x) * throwPower, 
-                            (this.input.activePointer.worldY - this.currentPlayerObj.sprite.y) * throwPower
+                            unit_vector.x * throwPower, 
+                            unit_vector.y * throwPower
                         )
                         this.cameras.main.startFollow(projectile, true);
         
                         /* Will disable gravity entirely for the projectiles. More for bullet-style projectiles */
                         projectile.body.setAllowGravity(false);
                         
-                        this.physics.add.collider(projectile, this.platforms, this.bulletDamageCallback, this.terrainProcessCallback, this);
+                        this.physics.add.collider(projectile, this.platforms, this.objectDamageCallback, this.terrainProcessCallback, this);
                         this.playerObjects.forEach(obj => {
-                            this.physics.add.collider(projectile, obj.sprite, this.bulletDamageCallback, this.terrainProcessCallback, this);
+                            this.physics.add.collider(projectile, obj.sprite, this.objectDamageCallback, this.terrainProcessCallback, this);
                         });
                         // this.physics.add.collider(projectile, this.playerObjects);
         
@@ -414,32 +431,75 @@ class BearGame extends Phaser.Scene {
                             }
                         }, OUT_OF_BOUNDS_INTERVAL_MILLIS);
                     } else if (this.currentPlayerObj.weaponKey == 'spear') {
+                        // https://math.stackexchange.com/questions/175896/finding-a-point-along-a-line-a-certain-distance-away-from-another-point
 
-                        const angle = Phaser.Geom.Line.Angle(this.indicatorLine);
+                        const line_distance = Math.sqrt(
+                            Math.pow(this.input.activePointer.worldX - this.currentPlayerObj.sprite.x, 2) +
+                            Math.pow(this.input.activePointer.worldY - this.currentPlayerObj.sprite.y, 2)
+                            );
+
+
+                        const distance_along_line = 40;
+                        const distance_ratio = distance_along_line/line_distance;
                         const point = {
-                            x: this.currentPlayerObj.sprite.x + 10*angle,
-                            y: this.currentPlayerObj.sprite.y + 10*angle
-                        };
-                        console.log(`Point: (${point.x},${point.y})`);
+                            x: (1 - distance_ratio) * this.currentPlayerObj.sprite.x + distance_ratio * this.input.activePointer.worldX,
+                            y: (1 - distance_ratio) * this.currentPlayerObj.sprite.y + distance_ratio * this.input.activePointer.worldY
+                        }
 
+                        // TODO: change from the bobber bomb to something not dependent on it
                         let projectile = this.physics.add.sprite(point.x, point.y, 'bobber-bomb')
-                        .setScale(0.2)
-                        // .setVelocity(
-                        //     this.input.activePointer.worldX - this.currentPlayerObj.sprite.x, 
-                        //     this.input.activePointer.worldY - this.currentPlayerObj.sprite.y
-                        // )
-        
-                        /* Will disable gravity entirely for the projectiles. More for bullet-style projectiles */
+                        .setScale(0.2);
+                        projectile.setVisible(false);
                         projectile.body.setAllowGravity(false);
-                        
-                        // this.physics.add.collider(projectile, this.platforms, this.bulletDamageCallback, this.terrainProcessCallback, this);
-                        // this.playerObjects.forEach(obj => {
-                        //     this.physics.add.collider(projectile, obj.sprite, this.bulletDamageCallback, this.terrainProcessCallback, this);
-                        // });
+
+                        const target_distance_along_line = 80;
+                        const target_distance_ratio = target_distance_along_line/line_distance;
+                        const target_point = {
+                            x: (1 - target_distance_ratio) * this.currentPlayerObj.sprite.x + target_distance_ratio * this.input.activePointer.worldX,
+                            y: (1 - target_distance_ratio) * this.currentPlayerObj.sprite.y + target_distance_ratio * this.input.activePointer.worldY
+                        }
+
+                        this.stopWeaponMove = true;
+                        this.tweens.add({
+                            targets: this.currentPlayerObj.weaponSprite,
+                            x: point.x,
+                            y: point.y,
+                            ease: 'Power1',
+                            duration: 200,
+                            onComplete: () => {
+                                this.tweens.add({
+                                    targets: this.currentPlayerObj.weaponSprite,
+                                    x: this.currentPlayerObj.sprite.x,
+                                    y: this.currentPlayerObj.sprite.y,
+                                    ease: 'Power1',
+                                    duration: 200,
+                                    onComplete: () => {
+                                        this.stopWeaponMove = false;
+                                    }
+                                })
+                            }
+                        });
+
+                        this.tweens.add({
+                            targets: projectile,
+                            x: target_point.x,
+                            y: target_point.y,
+                            ease: 'Power1',
+                            duration: 200, 
+                            onComplete: () => {
+                                projectile.destroy();
+                            }
+                        });
+
+                        // this.physics.add.collider(projectile, this.platforms, this.objectDamageCallback, this.terrainProcessCallback, this);
+                        this.playerObjects.forEach(obj => {
+                            // Remove collision for the current player to avoid hitting yourself
+                            if (obj !== this.currentPlayerObj) {
+                                this.physics.add.collider(projectile, obj.sprite, this.objectDamageCallback, this.terrainProcessCallback, this);
+                            }
+                        });
 
                         
-
-    
                     }
     
                     /* When left-button is released, we disable user interaction until a projectile collides with 
@@ -456,6 +516,7 @@ class BearGame extends Phaser.Scene {
         });
     }
 
+    /* Used in combination with terrainExplosionCallback */
     destroyTerrainCallback(object1, object2) {
         object2.destroy();
     }
@@ -478,7 +539,8 @@ class BearGame extends Phaser.Scene {
         }, RESET_PLAYER_MILLIS);
     }
 
-    bulletDamageCallback(object1, object2) {
+    /* Used for things like bullets or the "head" of a spear. Something that doesn't explode. */
+    objectDamageCallback(object1, object2) {
         // obj2 is the player
 
         this.playerObjects.forEach(playerObj => {
@@ -502,6 +564,7 @@ class BearGame extends Phaser.Scene {
 
     }
 
+    /* Used in combination with terrainExplosionCallback */
     damagePlayerCallback(object1, object2) {
         // obj2 is the player
 
@@ -525,6 +588,7 @@ class BearGame extends Phaser.Scene {
         
     }
 
+    /* Used for objects that "explode" */
     terrainExplosionCallback(object1, object2) {
         // TODO: the offset is to center the explosion on the sprite (specifically the bobber-bomb right now)
         var invis = this.physics.add.sprite(object1.x - 40, object1.y - 40);
@@ -572,54 +636,51 @@ class BearGame extends Phaser.Scene {
     }
 
     checkKeyboardInput() {
-        if (!this.disableUserInteraction) {
+        if (!this.disableUserInteraction && !this.currentPlayerObj.isAiming) {
             // this.currentPlayerObj would only be null if all the players are killed?
             if (this.currentPlayerObj && this.playerObjects.length) {
-
-                if (!this.currentPlayerObj.isAiming) {
-                    if (this.movementKeys.LEFT.isDown || this.movementKeys.A.isDown) {
-                        this.currentPlayerObj.sprite.setVelocityX(-160);
-                        this.currentPlayerObj.sprite.flipX = true;
-                        this.currentPlayerObj.isFacingLeft = true;
+                if (this.movementKeys.LEFT.isDown || this.movementKeys.A.isDown) {
+                    this.currentPlayerObj.sprite.setVelocityX(-160);
+                    this.currentPlayerObj.sprite.flipX = true;
+                    this.currentPlayerObj.isFacingLeft = true;
 
 
-                        // If blocked, player does a little hop to try and traverse the distance
-                        if (this.currentPlayerObj.sprite.body.blocked.left) {
-                            this.currentPlayerObj.sprite.y -= PLAYER_INCLINE_CLIMB_DIST;
-                        }
-            
-                        if (this.currentPlayerObj.weaponKey == 'fish-gun' 
-                        || this.currentPlayerObj.weaponKey == 'ak-47'
-                        || this.currentPlayerObj.weaponKey == 'spear')
-                            this.currentPlayerObj.weaponSprite.flipX = true;
-                        
-                    } else if (this.movementKeys.RIGHT.isDown || this.movementKeys.D.isDown) {
-                        this.currentPlayerObj.sprite.setVelocityX(160);
-                        this.currentPlayerObj.sprite.flipX = false;
-                        this.currentPlayerObj.isFacingLeft = false;
-                        
-                        // If blocked, player does a little hop to try and traverse the distance
-                        if (this.currentPlayerObj.sprite.body.blocked.right) {
-                            this.currentPlayerObj.sprite.y -= PLAYER_INCLINE_CLIMB_DIST;
-                        }
-            
-                        if (this.currentPlayerObj.weaponKey == 'fish-gun' 
-                        || this.currentPlayerObj.weaponKey == 'ak-47'
-                        || this.currentPlayerObj.weaponKey == 'spear')
-                            this.currentPlayerObj.weaponSprite.flipX = false;
-                    } else {
-                        this.currentPlayerObj.sprite.setVelocityX(0);
-                        // this.currentPlayerObj.sprite.setVelocityY(0);
+                    // If blocked, player does a little hop to try and traverse the distance
+                    if (this.currentPlayerObj.sprite.body.blocked.left) {
+                        this.currentPlayerObj.sprite.y -= PLAYER_INCLINE_CLIMB_DIST;
                     }
-
-                    if ((this.movementKeys.UP.isDown || this.movementKeys.W.isDown) && this.currentPlayerObj.sprite.body.touching.down) {
-                        this.currentPlayerObj.sprite.setVelocityY(-250);
+        
+                    if (this.currentPlayerObj.weaponKey == 'fish-gun' 
+                    || this.currentPlayerObj.weaponKey == 'ak-47'
+                    || this.currentPlayerObj.weaponKey == 'spear')
+                        this.currentPlayerObj.weaponSprite.flipX = true;
+                    
+                } else if (this.movementKeys.RIGHT.isDown || this.movementKeys.D.isDown) {
+                    this.currentPlayerObj.sprite.setVelocityX(160);
+                    this.currentPlayerObj.sprite.flipX = false;
+                    this.currentPlayerObj.isFacingLeft = false;
+                    
+                    // If blocked, player does a little hop to try and traverse the vertical distance
+                    if (this.currentPlayerObj.sprite.body.blocked.right) {
+                        this.currentPlayerObj.sprite.y -= PLAYER_INCLINE_CLIMB_DIST;
                     }
+        
+                    if (this.currentPlayerObj.weaponKey == 'fish-gun' 
+                    || this.currentPlayerObj.weaponKey == 'ak-47'
+                    || this.currentPlayerObj.weaponKey == 'spear')
+                        this.currentPlayerObj.weaponSprite.flipX = false;
                 } else {
                     this.currentPlayerObj.sprite.setVelocityX(0);
                 }
+
+                // This block controls jumping
+                if ((this.movementKeys.UP.isDown || this.movementKeys.W.isDown) && this.currentPlayerObj.sprite.body.touching.down) {
+                    this.currentPlayerObj.sprite.setVelocityY(-250);
+                }
                 
             
+                /* Swapping weapons entails deleting the old weapon sprite and spawning in a new one. Also updating
+                the relevant values in the this.currentPlayerObj */
                 if (Phaser.Input.Keyboard.JustDown(this.swapWeaponKey)) {
                     if (this.currentPlayerObj.weaponSprite)
                         this.currentPlayerObj.weaponSprite.destroy();
@@ -635,7 +696,6 @@ class BearGame extends Phaser.Scene {
                         this.currentPlayerObj.weaponKey = nextWeaponKey;
                     }
                         
-
                     switch (nextWeaponKey) {
                         case 'bobber-bomb':
                             this.currentPlayerObj.weaponSprite.setScale(0.25);
@@ -676,6 +736,8 @@ class BearGame extends Phaser.Scene {
                 }
             }
     
+        } else {
+            this.currentPlayerObj.sprite.setVelocityX(0);
         }
 
         
@@ -687,6 +749,8 @@ class BearGame extends Phaser.Scene {
             // this.currentPlayerObj would only be null if all the players are killed?
             if (this.currentPlayerObj && this.playerObjects.length) {
                 if (this.input.mousePointer.leftButtonDown() && this.input.mousePointer.rightButtonDown()) {
+                    /* If both mouse buttons are being pressed, we cancel the current attack and only allow attacking
+                    again if both mouse buttons are released */
                     this.currentPlayerObj.isAiming = false;
                     if (this.currentPlayerObj.weaponSprite) {
                         this.currentPlayerObj.weaponSprite.rotation = 0;
@@ -698,7 +762,9 @@ class BearGame extends Phaser.Scene {
                     // need to update the world point relative to the camera so that it's accurate when we use the point
                     this.input.activePointer.updateWorldPoint(this.cameras.main);
                     this.currentPlayerObj.isAiming = true;
+                    // redraw the indicator line
                     this.redrawLines();
+                    // rotate the weapon towards the mouse cursor
                     this.rotateWeaponToIndicatorLine();
                 } else {
                     this.indicatorLineGraphics.clear();
