@@ -19,6 +19,7 @@ const NEXT_WEAPON_KEY = 'B';
 
 
 const RESET_PLAYER_MILLIS = 1000;
+const RESET_PLAYER_DELAY_MILLIS = 1000;
 const OUT_OF_BOUNDS_INTERVAL_MILLIS = 500;
 
 // 0.5 is enough to climb 2 pixels high but not 3 pixels
@@ -102,18 +103,7 @@ class BearGame extends Phaser.Scene {
         // move weapons to players
         this.playerObjects.forEach(obj => {
             if (obj.weaponSprite) {
-                if (obj.weaponKey == 'spear') {
-                    // if (obj.isFacingLeft) {
-                    //     obj.weaponSprite.x = obj.sprite.x - 15;
-                    // } else {
-                    //     obj.weaponSprite.x = obj.sprite.x + 15;
-                    // }
-                    if (!this.stopWeaponMove) {
-
-                        obj.weaponSprite.x = obj.sprite.x;
-                        obj.weaponSprite.y = obj.sprite.y;
-                    }
-                } else {
+                if (!this.stopWeaponMove) {
                     obj.weaponSprite.x = obj.sprite.x;
                     obj.weaponSprite.y = obj.sprite.y;
                 }
@@ -332,174 +322,13 @@ class BearGame extends Phaser.Scene {
                     this.isCancelAttack = false;
                 } else if (pointer.leftButtonReleased() && this.playerObjects.length && this.currentPlayerObj.sprite.body.touching.down) {
                     if (this.currentPlayerObj.weaponKey == 'bobber-bomb') {
-                        const throwPower = 1.5;
-                        let projectile = this.physics.add.sprite(this.currentPlayerObj.sprite.x, this.currentPlayerObj.sprite.y, 'bobber-bomb')
-                        .setScale(0.25)
-                        .setMaxVelocity(400)
-                        .setVelocity(
-                            (this.input.activePointer.worldX - this.currentPlayerObj.sprite.x) * throwPower, 
-                            (this.input.activePointer.worldY - this.currentPlayerObj.sprite.y) * throwPower
-                        )
-                        .setDrag(60);
-                        this.cameras.main.startFollow(projectile, true);
-        
-                        /* Will disable gravity entirely for the projectiles. More for bullet-style projectiles */
-                        // projectile.body.setAllowGravity(false);
-                        
-                        this.physics.add.collider(projectile, this.platforms, this.terrainExplosionCallback, this.terrainProcessCallback, this);
-                        this.playerObjects.forEach(obj => {
-                            this.physics.add.collider(projectile, obj.sprite, this.terrainExplosionCallback, this.terrainProcessCallback, this);
-                        });
-                        // this.physics.add.collider(projectile, this.playerObjects);
-    
-                        // This is to give the illusion that we threw the bobber bomb
-                        this.currentPlayerObj.weaponSprite.setVisible(false);
-
-                        this.intervalCheck = setInterval(() => {
-                            // If Overlaps returns false, then the projectile is out of bounds
-                            let isNotOutOfBounds = Phaser.Geom.Rectangle.Overlaps(this.physics.world.bounds, projectile.getBounds());
-                            if (!isNotOutOfBounds) {
-                                clearInterval(this.intervalCheck);
-                                this.resetPlayerFromProjectile();
-                            }
-                        }, OUT_OF_BOUNDS_INTERVAL_MILLIS);
+                        this.useBobberBomb();
                     } else if (this.currentPlayerObj.weaponKey == 'fish-gun') {
-                        const unit_vector = new Phaser.Math.Vector2(
-                            this.input.activePointer.worldX - this.currentPlayerObj.sprite.x, 
-                            this.input.activePointer.worldY - this.currentPlayerObj.sprite.y)
-                            .normalize();
-                            
-                        const throwPower = 2;
-                        let projectile = this.physics.add.sprite(this.currentPlayerObj.sprite.x, this.currentPlayerObj.sprite.y, 'bobber-bomb')
-                        .setScale(0.25)
-                        .setMaxVelocity(550)
-                        .setVelocity(
-                            (this.input.activePointer.worldX - this.currentPlayerObj.sprite.x) * throwPower, 
-                            (this.input.activePointer.worldY - this.currentPlayerObj.sprite.y) * throwPower
-                        )
-                        .setDrag(60);
-                        this.cameras.main.startFollow(projectile, true);
-        
-                        /* Will disable gravity entirely for the projectiles. More for bullet-style projectiles */
-                        // projectile.body.setAllowGravity(false);
-                        
-                        this.physics.add.collider(projectile, this.platforms, this.terrainExplosionCallback, this.terrainProcessCallback, this);
-                        this.playerObjects.forEach(obj => {
-                            this.physics.add.collider(projectile, obj.sprite, this.terrainExplosionCallback, this.terrainProcessCallback, this);
-                        });
-                        // this.physics.add.collider(projectile, this.playerObjects);
-        
-                        this.intervalCheck = setInterval(() => {
-                            // If Overlaps returns false, then the projectile is out of bounds
-                            let isNotOutOfBounds = Phaser.Geom.Rectangle.Overlaps(this.physics.world.bounds, projectile.getBounds());
-                            if (!isNotOutOfBounds) {
-                                clearInterval(this.intervalCheck);
-                                this.resetPlayerFromProjectile();
-                            }
-                        }, OUT_OF_BOUNDS_INTERVAL_MILLIS);
+                        this.useFishGun();
                     } else if (this.currentPlayerObj.weaponKey == 'ak-47') {
-                        const unit_vector = new Phaser.Math.Vector2(
-                            this.input.activePointer.worldX - this.currentPlayerObj.sprite.x, 
-                            this.input.activePointer.worldY - this.currentPlayerObj.sprite.y)
-                            .normalize();
-
-                        // If the bullet is going too fast, it may not collide with a player?
-                        const throwPower = 1000;
-                        let projectile = this.physics.add.sprite(this.currentPlayerObj.sprite.x, this.currentPlayerObj.sprite.y, 'bobber-bomb')
-                        .setScale(0.1)
-                        .setVelocity(
-                            unit_vector.x * throwPower, 
-                            unit_vector.y * throwPower
-                        )
-                        this.cameras.main.startFollow(projectile, true);
-        
-                        /* Will disable gravity entirely for the projectiles. More for bullet-style projectiles */
-                        projectile.body.setAllowGravity(false);
-                        
-                        this.physics.add.collider(projectile, this.platforms, this.objectDamageCallback, this.terrainProcessCallback, this);
-                        this.playerObjects.forEach(obj => {
-                            this.physics.add.collider(projectile, obj.sprite, this.objectDamageCallback, this.terrainProcessCallback, this);
-                        });
-                        // this.physics.add.collider(projectile, this.playerObjects);
-        
-                        this.intervalCheck = setInterval(() => {
-                            // If Overlaps returns false, then the projectile is out of bounds
-                            let isNotOutOfBounds = Phaser.Geom.Rectangle.Overlaps(this.physics.world.bounds, projectile.getBounds());
-                            if (!isNotOutOfBounds) {
-                                clearInterval(this.intervalCheck);
-                                this.resetPlayerFromProjectile();
-                            }
-                        }, OUT_OF_BOUNDS_INTERVAL_MILLIS);
+                        this.useAk47();
                     } else if (this.currentPlayerObj.weaponKey == 'spear') {
-                        // https://math.stackexchange.com/questions/175896/finding-a-point-along-a-line-a-certain-distance-away-from-another-point
-
-                        const line_distance = Math.sqrt(
-                            Math.pow(this.input.activePointer.worldX - this.currentPlayerObj.sprite.x, 2) +
-                            Math.pow(this.input.activePointer.worldY - this.currentPlayerObj.sprite.y, 2)
-                            );
-
-
-                        const distance_along_line = 40;
-                        const distance_ratio = distance_along_line/line_distance;
-                        const point = {
-                            x: (1 - distance_ratio) * this.currentPlayerObj.sprite.x + distance_ratio * this.input.activePointer.worldX,
-                            y: (1 - distance_ratio) * this.currentPlayerObj.sprite.y + distance_ratio * this.input.activePointer.worldY
-                        }
-
-                        // TODO: change from the bobber bomb to something not dependent on it
-                        let projectile = this.physics.add.sprite(point.x, point.y, 'bobber-bomb')
-                        .setScale(0.2);
-                        projectile.setVisible(false);
-                        projectile.body.setAllowGravity(false);
-
-                        const target_distance_along_line = 80;
-                        const target_distance_ratio = target_distance_along_line/line_distance;
-                        const target_point = {
-                            x: (1 - target_distance_ratio) * this.currentPlayerObj.sprite.x + target_distance_ratio * this.input.activePointer.worldX,
-                            y: (1 - target_distance_ratio) * this.currentPlayerObj.sprite.y + target_distance_ratio * this.input.activePointer.worldY
-                        }
-
-                        this.stopWeaponMove = true;
-                        this.tweens.add({
-                            targets: this.currentPlayerObj.weaponSprite,
-                            x: point.x,
-                            y: point.y,
-                            ease: 'Power1',
-                            duration: 200,
-                            onComplete: () => {
-                                this.tweens.add({
-                                    targets: this.currentPlayerObj.weaponSprite,
-                                    x: this.currentPlayerObj.sprite.x,
-                                    y: this.currentPlayerObj.sprite.y,
-                                    ease: 'Power1',
-                                    duration: 200,
-                                    onComplete: () => {
-                                        this.stopWeaponMove = false;
-                                    }
-                                })
-                            }
-                        });
-
-                        this.tweens.add({
-                            targets: projectile,
-                            x: target_point.x,
-                            y: target_point.y,
-                            ease: 'Power1',
-                            duration: 200, 
-                            onComplete: () => {
-                                projectile.destroy();
-                            }
-                        });
-
-                        // this.physics.add.collider(projectile, this.platforms, this.objectDamageCallback, this.terrainProcessCallback, this);
-                        this.playerObjects.forEach(obj => {
-                            // Remove collision for the current player to avoid hitting yourself
-                            if (obj !== this.currentPlayerObj) {
-                                this.physics.add.collider(projectile, obj.sprite, this.objectDamageCallback, this.terrainProcessCallback, this);
-                            }
-                        });
-
-                        
+                        this.useSpear();
                     }
     
                     /* When left-button is released, we disable user interaction until a projectile collides with 
@@ -516,6 +345,176 @@ class BearGame extends Phaser.Scene {
         });
     }
 
+    useBobberBomb() {
+        const throwPower = 1.5;
+        let projectile = this.physics.add.sprite(this.currentPlayerObj.sprite.x, this.currentPlayerObj.sprite.y, 'bobber-bomb')
+        .setScale(0.25)
+        .setMaxVelocity(400)
+        .setVelocity(
+            (this.input.activePointer.worldX - this.currentPlayerObj.sprite.x) * throwPower, 
+            (this.input.activePointer.worldY - this.currentPlayerObj.sprite.y) * throwPower
+        )
+        .setDrag(60);
+        this.cameras.main.startFollow(projectile, true);
+
+        /* Will disable gravity entirely for the projectiles. More for bullet-style projectiles */
+        // projectile.body.setAllowGravity(false);
+        
+        this.physics.add.collider(projectile, this.platforms, this.terrainExplosionCallback, this.terrainProcessCallback, this);
+        this.playerObjects.forEach(obj => {
+            this.physics.add.collider(projectile, obj.sprite, this.terrainExplosionCallback, this.terrainProcessCallback, this);
+        });
+        // this.physics.add.collider(projectile, this.playerObjects);
+
+        // This is to give the illusion that we threw the bobber bomb
+        this.currentPlayerObj.weaponSprite.setVisible(false);
+
+        this.intervalCheck = setInterval(() => {
+            // If Overlaps returns false, then the projectile is out of bounds
+            let isNotOutOfBounds = Phaser.Geom.Rectangle.Overlaps(this.physics.world.bounds, projectile.getBounds());
+            if (!isNotOutOfBounds) {
+                clearInterval(this.intervalCheck);
+                this.resetPlayerFromProjectile(RESET_PLAYER_MILLIS, RESET_PLAYER_DELAY_MILLIS);
+            }
+        }, OUT_OF_BOUNDS_INTERVAL_MILLIS);
+    }
+
+    useFishGun() {
+        const throwPower = 2;
+        let projectile = this.physics.add.sprite(this.currentPlayerObj.sprite.x, this.currentPlayerObj.sprite.y, 'bobber-bomb')
+        .setScale(0.25)
+        .setMaxVelocity(550)
+        .setVelocity(
+            (this.input.activePointer.worldX - this.currentPlayerObj.sprite.x) * throwPower, 
+            (this.input.activePointer.worldY - this.currentPlayerObj.sprite.y) * throwPower
+        )
+        .setDrag(60);
+        this.cameras.main.startFollow(projectile, true);
+
+        /* Will disable gravity entirely for the projectiles. More for bullet-style projectiles */
+        // projectile.body.setAllowGravity(false);
+        
+        this.physics.add.collider(projectile, this.platforms, this.terrainExplosionCallback, this.terrainProcessCallback, this);
+        this.playerObjects.forEach(obj => {
+            this.physics.add.collider(projectile, obj.sprite, this.terrainExplosionCallback, this.terrainProcessCallback, this);
+        });
+        // this.physics.add.collider(projectile, this.playerObjects);
+
+        this.intervalCheck = setInterval(() => {
+            // If Overlaps returns false, then the projectile is out of bounds
+            let isNotOutOfBounds = Phaser.Geom.Rectangle.Overlaps(this.physics.world.bounds, projectile.getBounds());
+            if (!isNotOutOfBounds) {
+                clearInterval(this.intervalCheck);
+                this.resetPlayerFromProjectile(RESET_PLAYER_MILLIS, RESET_PLAYER_DELAY_MILLIS);
+            }
+        }, OUT_OF_BOUNDS_INTERVAL_MILLIS);
+    }
+
+    useAk47() {
+        const unit_vector = new Phaser.Math.Vector2(
+            this.input.activePointer.worldX - this.currentPlayerObj.sprite.x, 
+            this.input.activePointer.worldY - this.currentPlayerObj.sprite.y)
+            .normalize();
+
+        // If the bullet is going too fast, it may not collide with a player?
+        const throwPower = 1000;
+        let projectile = this.physics.add.sprite(this.currentPlayerObj.sprite.x, this.currentPlayerObj.sprite.y, 'bobber-bomb')
+        .setScale(0.1)
+        .setVelocity(
+            unit_vector.x * throwPower, 
+            unit_vector.y * throwPower
+        )
+        this.cameras.main.startFollow(projectile, true);
+
+        /* Will disable gravity entirely for the projectiles. More for bullet-style projectiles */
+        projectile.body.setAllowGravity(false);
+        
+        this.physics.add.collider(projectile, this.platforms, this.objectDamageCallback, this.terrainProcessCallback, this);
+        this.playerObjects.forEach(obj => {
+            this.physics.add.collider(projectile, obj.sprite, this.objectDamageCallback, this.terrainProcessCallback, this);
+        });
+        // this.physics.add.collider(projectile, this.playerObjects);
+
+        this.intervalCheck = setInterval(() => {
+            // If Overlaps returns false, then the projectile is out of bounds
+            let isNotOutOfBounds = Phaser.Geom.Rectangle.Overlaps(this.physics.world.bounds, projectile.getBounds());
+            if (!isNotOutOfBounds) {
+                clearInterval(this.intervalCheck);
+                this.resetPlayerFromProjectile(RESET_PLAYER_MILLIS, RESET_PLAYER_DELAY_MILLIS);
+            }
+        }, OUT_OF_BOUNDS_INTERVAL_MILLIS);
+    }
+
+    useSpear() {
+        // https://math.stackexchange.com/questions/175896/finding-a-point-along-a-line-a-certain-distance-away-from-another-point
+        const line_distance = Math.sqrt(
+            Math.pow(this.input.activePointer.worldX - this.currentPlayerObj.sprite.x, 2) +
+            Math.pow(this.input.activePointer.worldY - this.currentPlayerObj.sprite.y, 2)
+            );
+
+
+        const distance_along_line = 40;
+        const distance_ratio = distance_along_line/line_distance;
+        const point = {
+            x: (1 - distance_ratio) * this.currentPlayerObj.sprite.x + distance_ratio * this.input.activePointer.worldX,
+            y: (1 - distance_ratio) * this.currentPlayerObj.sprite.y + distance_ratio * this.input.activePointer.worldY
+        }
+
+        // TODO: change from the bobber bomb to something not dependent on it
+        let projectile = this.physics.add.sprite(point.x, point.y, 'bobber-bomb')
+        .setScale(0.2);
+        projectile.setVisible(false);
+        projectile.body.setAllowGravity(false);
+
+        const target_distance_along_line = 80;
+        const target_distance_ratio = target_distance_along_line/line_distance;
+        const target_point = {
+            x: (1 - target_distance_ratio) * this.currentPlayerObj.sprite.x + target_distance_ratio * this.input.activePointer.worldX,
+            y: (1 - target_distance_ratio) * this.currentPlayerObj.sprite.y + target_distance_ratio * this.input.activePointer.worldY
+        }
+
+        this.stopWeaponMove = true;
+        this.tweens.add({
+            targets: this.currentPlayerObj.weaponSprite,
+            x: point.x,
+            y: point.y,
+            ease: 'Power1',
+            duration: 200,
+            onComplete: () => {
+                this.tweens.add({
+                    targets: this.currentPlayerObj.weaponSprite,
+                    x: this.currentPlayerObj.sprite.x,
+                    y: this.currentPlayerObj.sprite.y,
+                    ease: 'Power1',
+                    duration: 200,
+                    onComplete: () => {
+                        this.stopWeaponMove = false;
+                        this.resetPlayerFromProjectile(0, 0);
+                    }
+                })
+            }
+        });
+
+        this.tweens.add({
+            targets: projectile,
+            x: target_point.x,
+            y: target_point.y,
+            ease: 'Power1',
+            duration: 200, 
+            onComplete: () => {
+                projectile.destroy();
+            }
+        });
+
+        // this.physics.add.collider(projectile, this.platforms, this.objectDamageCallback, this.terrainProcessCallback, this);
+        this.playerObjects.forEach(obj => {
+            // Remove collision for the current player to avoid hitting yourself
+            if (obj !== this.currentPlayerObj) {
+                this.physics.add.collider(projectile, obj.sprite, this.objectDamageCallback, this.terrainProcessCallback, this);
+            }
+        });
+    }
+
     /* Used in combination with terrainExplosionCallback */
     destroyTerrainCallback(object1, object2) {
         object2.destroy();
@@ -523,20 +522,25 @@ class BearGame extends Phaser.Scene {
 
     /* This will reset the player by panning the camera to the current player. When done panning, user interaction will be enabled 
     and other things needed to set the player back to a "normal" state of play. */
-    resetPlayerFromProjectile() {
-        this.cameras.main.stopFollow();
-        this.cameras.main.pan(this.currentPlayerObj.sprite.x, this.currentPlayerObj.sprite.y, RESET_PLAYER_MILLIS);
+    resetPlayerFromProjectile(reset_player_millis, timeout_millis) {
         setTimeout(() => {
-            if (this.currentPlayerObj.weaponSprite) {
-                this.currentPlayerObj.weaponSprite.rotation = 0;
-                /* Specifically, this is for the bobber-bomb because we setVisible to false to give
-                the illusion that we threw it */
-                this.currentPlayerObj.weaponSprite.setVisible(true);
+            this.cameras.main.stopFollow();
+            if (reset_player_millis > 0) {
+                this.cameras.main.pan(this.currentPlayerObj.sprite.x, this.currentPlayerObj.sprite.y, reset_player_millis);
             }
-            
-            this.disableUserInteraction = false;
-            this.cameras.main.startFollow(this.currentPlayerObj.sprite, true);
-        }, RESET_PLAYER_MILLIS);
+            setTimeout(() => {
+                if (this.currentPlayerObj.weaponSprite) {
+                    this.currentPlayerObj.weaponSprite.rotation = 0;
+                    /* Specifically, this is for the bobber-bomb because we setVisible to false to give
+                    the illusion that we threw it */
+                    this.currentPlayerObj.weaponSprite.setVisible(true);
+                }
+                
+                this.disableUserInteraction = false;
+                this.cameras.main.startFollow(this.currentPlayerObj.sprite, true);
+            }, reset_player_millis);
+        }, timeout_millis);
+        
     }
 
     /* Used for things like bullets or the "head" of a spear. Something that doesn't explode. */
@@ -560,7 +564,12 @@ class BearGame extends Phaser.Scene {
         });
 
         object1.destroy();
-        this.resetPlayerFromProjectile();
+
+        /* For most other weapons, we want to reset. But since a few have special animations
+        such as the spear, we want to handle those differently elsewhere */
+        if (this.currentPlayerObj.weaponKey != 'spear') {
+            this.resetPlayerFromProjectile(RESET_PLAYER_MILLIS, RESET_PLAYER_DELAY_MILLIS);
+        }
 
     }
 
@@ -624,7 +633,7 @@ class BearGame extends Phaser.Scene {
         }, timeout_millis);
 
 
-        this.resetPlayerFromProjectile();
+        this.resetPlayerFromProjectile(RESET_PLAYER_MILLIS, RESET_PLAYER_DELAY_MILLIS);
 
         /* This would delete the initial point of contact, but instead we leave that responsibility
         to the explosion radius collider */
@@ -724,7 +733,8 @@ class BearGame extends Phaser.Scene {
                     }
                     
                     if (this.currentPlayerObj.weaponSprite) {
-                        this.currentPlayerObj.weaponSprite.refreshBody();
+                        // NOTE: refreshing the body here causes an offset of the initial spawn position. idk why
+                        // this.currentPlayerObj.weaponSprite.refreshBody();
                         this.currentPlayerObj.weaponSprite.setImmovable(true);
                         this.currentPlayerObj.weaponSprite.body.setAllowGravity(false);
                     }
