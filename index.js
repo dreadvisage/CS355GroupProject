@@ -377,7 +377,9 @@ class BearGame extends Phaser.Scene {
         
         this.physics.add.collider(projectile, this.platforms, this.terrainExplosionCallback, this.terrainProcessCallback, this);
         this.playerObjects.forEach(obj => {
-            this.physics.add.collider(projectile, obj.sprite, this.terrainExplosionCallback, this.terrainProcessCallback, this);
+            if (obj !== this.currentPlayerObj) {
+                this.physics.add.collider(projectile, obj.sprite, this.terrainExplosionCallback, this.terrainProcessCallback, this);
+            }
         });
         // this.physics.add.collider(projectile, this.playerObjects);
 
@@ -401,8 +403,13 @@ class BearGame extends Phaser.Scene {
 
         this.physics.add.collider(projectile, this.platforms, this.terrainExplosionCallback, this.terrainProcessCallback, this);
         this.playerObjects.forEach(obj => {
-            this.physics.add.collider(projectile, obj.sprite, this.terrainExplosionCallback, this.terrainProcessCallback, this);
+            // Remove collision for the current player to avoid hitting yourself
+            if (obj !== this.currentPlayerObj) {
+                this.physics.add.collider(projectile, obj.sprite, this.terrainExplosionCallback, this.terrainProcessCallback, this);
+            }
         });
+
+        
 
         this.checkIntervalOOB(projectile);
     }
@@ -492,7 +499,7 @@ class BearGame extends Phaser.Scene {
                     duration: animation_duration_millis,
                     onComplete: () => {
                         this.stopWeaponMove = false;
-                        this.resetPlayerFromProjectile(0, 0);
+                        this.resetPlayerFromProjectile(100, 100);
                     }
                 })
             }
