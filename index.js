@@ -37,6 +37,9 @@ class BearGame extends Phaser.Scene {
     /* This is used to disable user interaction with the game. Such as 
     when a projectile is in-flight and we want to wait for it to land */
     disableInteraction;
+    /* Used to stop moving the weaponSprite to each players. Useful when needing
+    to play an animation that moves the weaponSprite */
+    stopWeaponMove;
 
     nextPlayerKey;
     swapWeaponKey;
@@ -55,13 +58,18 @@ class BearGame extends Phaser.Scene {
     deadTextOverlay;
     
     preload() {
+        // backgrounds
         this.load.image('background', 'assets/background.jpg');
 
+        // maps
         this.load.image('map1', 'assets/maps/map1.png');
         this.load.image('map2', 'assets/maps/map2.png');
 
+        // player sprites
         this.load.image('bear1', 'assets/bear1.png');
         this.load.image('bear2', 'assets/bear2.png');
+
+        // weapon sprites
         this.load.image('bobber-bomb', 'assets/bobber-bomb.png');
         this.load.image('fish-gun', 'assets/fish-gun.png');
         this.load.image('ak-47', 'assets/ak-47.png');
@@ -78,21 +86,20 @@ class BearGame extends Phaser.Scene {
         this.createLineResources();
         this.createMouseListeners();
 
-        this.stopWeaponMove = false;
-
         this.swapWeaponKey = this.input.keyboard.addKey(NEXT_WEAPON_KEY);
         this.nextPlayerKey = this.input.keyboard.addKey(NEXT_PLAYER_KEY);
         this.movementKeys = this.input.keyboard.addKeys('W,UP,D,RIGHT,A,LEFT');
 
         this.disableUserInteraction = false;
+        this.stopWeaponMove = false;
         this.isCancelAttack = false;
         
         this.cameras.main.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
         this.cameras.main.startFollow(this.currentPlayerObj.sprite, true);
 
-        this.cancelAttackTextOverlay = this.add.text(150, 340, `When holding left-click, you can right-click to cancel your attack`, { font: '16px Courier', fill: '#000000' }).setOrigin(0).setScale(1);
         this.cycleWeaponTextOverlay = this.add.text(300, 300, `Use the \"${NEXT_WEAPON_KEY}\" key to cycle weapons`, { font: '16px Courier', fill: '#000000' }).setOrigin(0).setScale(1);
         this.cyclePlayerTextOverlay = this.add.text(300, 320, `Use the \"${NEXT_PLAYER_KEY}\" key to cycle players`, { font: '16px Courier', fill: '#000000' }).setOrigin(0).setScale(1);
+        this.cancelAttackTextOverlay = this.add.text(150, 340, `When holding left-click, you can right-click to cancel your attack`, { font: '16px Courier', fill: '#000000' }).setOrigin(0).setScale(1);
     }
 
     update() {
@@ -321,14 +328,22 @@ class BearGame extends Phaser.Scene {
                 if (this.isCancelAttack && !pointer.leftButtonDown() && !pointer.rightButtonDown()) {
                     this.isCancelAttack = false;
                 } else if (pointer.leftButtonReleased() && this.playerObjects.length && this.currentPlayerObj.sprite.body.touching.down) {
-                    if (this.currentPlayerObj.weaponKey == 'bobber-bomb') {
-                        this.useBobberBomb();
-                    } else if (this.currentPlayerObj.weaponKey == 'fish-gun') {
-                        this.useFishGun();
-                    } else if (this.currentPlayerObj.weaponKey == 'ak-47') {
-                        this.useAk47();
-                    } else if (this.currentPlayerObj.weaponKey == 'spear') {
-                        this.useSpear();
+                    /* If left-button was released, there are still players in the game, and the current player is 
+                    touching the ground, then proceed. */
+
+                    switch (this.currentPlayerObj.weaponKey) {
+                        case 'bobber-bomb':
+                            this.useBobberBomb();
+                            break;
+                        case 'fish-gun':
+                            this.useFishGun();
+                            break;
+                        case 'ak-47':
+                            this.useAk47();
+                            break;
+                        case 'spear':
+                            this.useSpear();
+                            break;
                     }
     
                     /* When left-button is released, we disable user interaction until a projectile collides with 
@@ -346,13 +361,13 @@ class BearGame extends Phaser.Scene {
     }
 
     useBobberBomb() {
-        const throwPower = 1.5;
+        const power = 1.5;
         let projectile = this.physics.add.sprite(this.currentPlayerObj.sprite.x, this.currentPlayerObj.sprite.y, 'bobber-bomb')
         .setScale(0.25)
         .setMaxVelocity(400)
         .setVelocity(
-            (this.input.activePointer.worldX - this.currentPlayerObj.sprite.x) * throwPower, 
-            (this.input.activePointer.worldY - this.currentPlayerObj.sprite.y) * throwPower
+            (this.input.activePointer.worldX - this.currentPlayerObj.sprite.x) * power, 
+            (this.input.activePointer.worldY - this.currentPlayerObj.sprite.y) * power
         )
         .setDrag(60);
         this.cameras.main.startFollow(projectile, true);
@@ -369,90 +384,74 @@ class BearGame extends Phaser.Scene {
         // This is to give the illusion that we threw the bobber bomb
         this.currentPlayerObj.weaponSprite.setVisible(false);
 
-        this.intervalCheck = setInterval(() => {
-            // If Overlaps returns false, then the projectile is out of bounds
-            let isNotOutOfBounds = Phaser.Geom.Rectangle.Overlaps(this.physics.world.bounds, projectile.getBounds());
-            if (!isNotOutOfBounds) {
-                clearInterval(this.intervalCheck);
-                this.resetPlayerFromProjectile(RESET_PLAYER_MILLIS, RESET_PLAYER_DELAY_MILLIS);
-            }
-        }, OUT_OF_BOUNDS_INTERVAL_MILLIS);
-    }
+        this.checkIntervalOOB(projectile);
+    }   
 
     useFishGun() {
-        const throwPower = 2;
+        const power = 2;
         let projectile = this.physics.add.sprite(this.currentPlayerObj.sprite.x, this.currentPlayerObj.sprite.y, 'bobber-bomb')
         .setScale(0.25)
         .setMaxVelocity(550)
         .setVelocity(
-            (this.input.activePointer.worldX - this.currentPlayerObj.sprite.x) * throwPower, 
-            (this.input.activePointer.worldY - this.currentPlayerObj.sprite.y) * throwPower
+            (this.input.activePointer.worldX - this.currentPlayerObj.sprite.x) * power, 
+            (this.input.activePointer.worldY - this.currentPlayerObj.sprite.y) * power
         )
         .setDrag(60);
         this.cameras.main.startFollow(projectile, true);
 
-        /* Will disable gravity entirely for the projectiles. More for bullet-style projectiles */
-        // projectile.body.setAllowGravity(false);
-        
         this.physics.add.collider(projectile, this.platforms, this.terrainExplosionCallback, this.terrainProcessCallback, this);
         this.playerObjects.forEach(obj => {
             this.physics.add.collider(projectile, obj.sprite, this.terrainExplosionCallback, this.terrainProcessCallback, this);
         });
-        // this.physics.add.collider(projectile, this.playerObjects);
 
-        this.intervalCheck = setInterval(() => {
-            // If Overlaps returns false, then the projectile is out of bounds
-            let isNotOutOfBounds = Phaser.Geom.Rectangle.Overlaps(this.physics.world.bounds, projectile.getBounds());
-            if (!isNotOutOfBounds) {
-                clearInterval(this.intervalCheck);
-                this.resetPlayerFromProjectile(RESET_PLAYER_MILLIS, RESET_PLAYER_DELAY_MILLIS);
-            }
-        }, OUT_OF_BOUNDS_INTERVAL_MILLIS);
+        this.checkIntervalOOB(projectile);
     }
 
     useAk47() {
+        /* We want the ak-47 to always shoot bullets that are the same speed, no matter how much
+        "power" the player may put behind the attack. To do this, we need to calculate the 
+        unit vector. Since we use the active pointer to determine the direction, we have to do this
+        because the amount of power is determined by how far the active pointer is away from the 
+        current player. When calculating the unit vector, instead we solely get the direction of the 
+        bullet. Then we can add a fixed amount of "power" behind the bullet */
         const unit_vector = new Phaser.Math.Vector2(
             this.input.activePointer.worldX - this.currentPlayerObj.sprite.x, 
             this.input.activePointer.worldY - this.currentPlayerObj.sprite.y)
             .normalize();
 
-        // If the bullet is going too fast, it may not collide with a player?
-        const throwPower = 1000;
+        const power = 1000;
         let projectile = this.physics.add.sprite(this.currentPlayerObj.sprite.x, this.currentPlayerObj.sprite.y, 'bobber-bomb')
         .setScale(0.1)
         .setVelocity(
-            unit_vector.x * throwPower, 
-            unit_vector.y * throwPower
+            unit_vector.x * power, 
+            unit_vector.y * power
         )
         this.cameras.main.startFollow(projectile, true);
 
-        /* Will disable gravity entirely for the projectiles. More for bullet-style projectiles */
+        // Gives a bullet-style behavior by ignoring gravity.
         projectile.body.setAllowGravity(false);
         
         this.physics.add.collider(projectile, this.platforms, this.objectDamageCallback, this.terrainProcessCallback, this);
         this.playerObjects.forEach(obj => {
             this.physics.add.collider(projectile, obj.sprite, this.objectDamageCallback, this.terrainProcessCallback, this);
         });
-        // this.physics.add.collider(projectile, this.playerObjects);
 
-        this.intervalCheck = setInterval(() => {
-            // If Overlaps returns false, then the projectile is out of bounds
-            let isNotOutOfBounds = Phaser.Geom.Rectangle.Overlaps(this.physics.world.bounds, projectile.getBounds());
-            if (!isNotOutOfBounds) {
-                clearInterval(this.intervalCheck);
-                this.resetPlayerFromProjectile(RESET_PLAYER_MILLIS, RESET_PLAYER_DELAY_MILLIS);
-            }
-        }, OUT_OF_BOUNDS_INTERVAL_MILLIS);
+        this.checkIntervalOOB(projectile);
     }
 
     useSpear() {
+        /* From our indicatorLine, we are given a direction that the spear will be "thrusted" towards.
+        However, for an animation, we need to know how far we are thrusting the spear. We can't 
+        calculate a fraction of the indicatorLine because it can have variable length. So we need a 
+        way to calculate an arbitrary distance along the direction of a line (no matter the length
+        of the line). The link below provides a solid overview on how we're calculating the distance.*/
         // https://math.stackexchange.com/questions/175896/finding-a-point-along-a-line-a-certain-distance-away-from-another-point
-        const line_distance = Math.sqrt(
-            Math.pow(this.input.activePointer.worldX - this.currentPlayerObj.sprite.x, 2) +
-            Math.pow(this.input.activePointer.worldY - this.currentPlayerObj.sprite.y, 2)
-            );
+        
+        /* Phaser has a built in way to calculate line length so we don't need to do 
+        link's implementation */
+        const line_distance = Phaser.Geom.Line.Length(this.indicatorLine);
 
-
+        // This block is used for the Spear animation
         const distance_along_line = 40;
         const distance_ratio = distance_along_line/line_distance;
         const point = {
@@ -466,6 +465,7 @@ class BearGame extends Phaser.Scene {
         projectile.setVisible(false);
         projectile.body.setAllowGravity(false);
 
+        // This block is used for the projectile "hitbox" animation
         const target_distance_along_line = 80;
         const target_distance_ratio = target_distance_along_line/line_distance;
         const target_point = {
@@ -473,20 +473,23 @@ class BearGame extends Phaser.Scene {
             y: (1 - target_distance_ratio) * this.currentPlayerObj.sprite.y + target_distance_ratio * this.input.activePointer.worldY
         }
 
+        // This block produces a quick spear jab forward animation
+        const animation_duration_millis = 200;
         this.stopWeaponMove = true;
+        // Spear animation
         this.tweens.add({
             targets: this.currentPlayerObj.weaponSprite,
             x: point.x,
             y: point.y,
             ease: 'Power1',
-            duration: 200,
+            duration: animation_duration_millis,
             onComplete: () => {
                 this.tweens.add({
                     targets: this.currentPlayerObj.weaponSprite,
                     x: this.currentPlayerObj.sprite.x,
                     y: this.currentPlayerObj.sprite.y,
                     ease: 'Power1',
-                    duration: 200,
+                    duration: animation_duration_millis,
                     onComplete: () => {
                         this.stopWeaponMove = false;
                         this.resetPlayerFromProjectile(0, 0);
@@ -494,19 +497,21 @@ class BearGame extends Phaser.Scene {
                 })
             }
         });
-
+        /* Projectile animation. We don't need the "backwards" animation for the 
+        projectile because we are unlikely to "hit" anything when going backwards. 
+        Instead just destroy the object. */
         this.tweens.add({
             targets: projectile,
             x: target_point.x,
             y: target_point.y,
             ease: 'Power1',
-            duration: 200, 
+            duration: animation_duration_millis, 
             onComplete: () => {
                 projectile.destroy();
             }
         });
 
-        // this.physics.add.collider(projectile, this.platforms, this.objectDamageCallback, this.terrainProcessCallback, this);
+        // Only need colliders for each player. We don't care about the spear hitting terrain.
         this.playerObjects.forEach(obj => {
             // Remove collision for the current player to avoid hitting yourself
             if (obj !== this.currentPlayerObj) {
@@ -515,8 +520,21 @@ class BearGame extends Phaser.Scene {
         });
     }
 
+    // Check interval out-of-bounds
+    checkIntervalOOB(projectile) {
+        this.intervalCheck = setInterval(() => {
+            // If Overlaps returns false, then the projectile is out of bounds
+            let isNotOutOfBounds = Phaser.Geom.Rectangle.Overlaps(this.physics.world.bounds, projectile.getBounds());
+            if (!isNotOutOfBounds) {
+                clearInterval(this.intervalCheck);
+                this.resetPlayerFromProjectile(RESET_PLAYER_MILLIS, RESET_PLAYER_DELAY_MILLIS);
+            }
+        }, OUT_OF_BOUNDS_INTERVAL_MILLIS);
+    }
+
     /* Used in combination with terrainExplosionCallback */
     destroyTerrainCallback(object1, object2) {
+        // object2 is the terrain
         object2.destroy();
     }
 
@@ -525,9 +543,8 @@ class BearGame extends Phaser.Scene {
     resetPlayerFromProjectile(reset_player_millis, timeout_millis) {
         setTimeout(() => {
             this.cameras.main.stopFollow();
-            if (reset_player_millis > 0) {
+            if (reset_player_millis > 0)
                 this.cameras.main.pan(this.currentPlayerObj.sprite.x, this.currentPlayerObj.sprite.y, reset_player_millis);
-            }
             setTimeout(() => {
                 if (this.currentPlayerObj.weaponSprite) {
                     this.currentPlayerObj.weaponSprite.rotation = 0;
@@ -545,7 +562,7 @@ class BearGame extends Phaser.Scene {
 
     /* Used for things like bullets or the "head" of a spear. Something that doesn't explode. */
     objectDamageCallback(object1, object2) {
-        // obj2 is the player
+        // object2 is the player
 
         this.playerObjects.forEach(playerObj => {
             if (playerObj.sprite === object2) {
@@ -634,10 +651,6 @@ class BearGame extends Phaser.Scene {
 
 
         this.resetPlayerFromProjectile(RESET_PLAYER_MILLIS, RESET_PLAYER_DELAY_MILLIS);
-
-        /* This would delete the initial point of contact, but instead we leave that responsibility
-        to the explosion radius collider */
-        // object2.destroy();
     }
 
     terrainProcessCallback(object1, object2) {
@@ -687,7 +700,6 @@ class BearGame extends Phaser.Scene {
                     this.currentPlayerObj.sprite.setVelocityY(-250);
                 }
                 
-            
                 /* Swapping weapons entails deleting the old weapon sprite and spawning in a new one. Also updating
                 the relevant values in the this.currentPlayerObj */
                 if (Phaser.Input.Keyboard.JustDown(this.swapWeaponKey)) {
