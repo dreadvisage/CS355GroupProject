@@ -223,7 +223,7 @@ class BearGame extends Phaser.Scene {
         sprite.setCollideWorldBounds(true);
         sprite.setPushable(false);
         // slows down the player if they are "pushed" away
-        sprite.setDrag(50);
+        sprite.setDrag(100);
 
         // Center health bar and set it to be a little above the player's head
         const healthBar = this.makeBar(sprite.x - BAR_WIDTH/2, sprite.y - BAR_DIST_ABOVE_HEAD, BAR_FILL_COLOR, BAR_LINE_COLOR);
@@ -608,7 +608,7 @@ class BearGame extends Phaser.Scene {
                 };
                 const angle = Phaser.Math.Angle.BetweenPoints(pushBackPoint, playerPoint);
                 object2.body.velocity.y -= Math.sin(angle) * 200;
-                object2.body.velocity.x += Math.cos(angle) * 100;
+                object2.body.velocity.x += Math.cos(angle) * 250;
             }
         }
 
@@ -630,9 +630,25 @@ class BearGame extends Phaser.Scene {
                 } else {
                     playerObj.health = newHealth;
                 }
+
+                if (object2.body) {
+                    const pushBackPoint = {
+                        x: object1.x + 40,
+                        y: object1.y + 40
+                    };
+                    const playerPoint = {
+                        x: object2.x,
+                        y: object2.y
+                    };
+                    const angle = Phaser.Math.Angle.BetweenPoints(pushBackPoint, playerPoint);
+                    object2.body.velocity.y += Math.sin(angle) * 400;
+                    object2.body.velocity.x += Math.cos(angle) * 250;
+                }
         
                 this.setBarValue(playerObj.healthBar, playerObj.health);
                 object1.damagePlayerList[i][1] = false;
+
+                
             }
         }
         
@@ -785,9 +801,9 @@ class BearGame extends Phaser.Scene {
         } else {
             // FIXME. Ideally, I would set the this.currentPlayerObj to null to indicate there
             // are no more available players
-            if (this.currentPlayerObj.sprite.body) {
-                this.currentPlayerObj.sprite.setVelocityX(0);
-            }
+            // if (this.currentPlayerObj.sprite.body) {
+            //     this.currentPlayerObj.sprite.setVelocityX(0);
+            // }
         }
 
         
