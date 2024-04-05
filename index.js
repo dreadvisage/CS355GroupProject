@@ -26,8 +26,89 @@ const OUT_OF_BOUNDS_INTERVAL_MILLIS = 500;
 // 0.6 is enough to climb 3 pixels
 const PLAYER_INCLINE_CLIMB_DIST = 0.5;
 
+
+
+// Class that contains the main menu scene
+class menu extends Phaser.Scene {
+
+    preload()
+    {
+        this.load.image('background', 'assets/background.jpg');
+        this.load.image('playButton', 'assets/playButton.png');
+        this.load.image('bearTitle', 'assets/bearTitle.png');
+    }
+
+    create() {
+
+        this.createBackground();
+        
+        this.add.image(400, 150, 'bearTitle');
+
+        // This is the bear face Play button
+        this.clickButton = this.add.image(400, 350, 'playButton')
+            .setScale(0.6)
+            .setInteractive({useHandCursor: true})
+            // On click, start the map select scene
+            .on('pointerdown', () => this.scene.start("mapSelect"))
+    }
+
+    createBackground() {
+        this.add.image(-200, -190, 'background')
+        .setScale(1)
+        .setOrigin(0);
+    }
+
+}
+
+// Class that contains the map selector scene
+class mapSelect extends Phaser.Scene {
+
+    constructor(){
+        super("mapSelect");
+    }
+
+    preload()
+    {
+        this.load.image('background', 'assets/background.jpg');
+        this.load.image('map1', 'assets/maps/map1.png');
+        this.load.image('map2', 'assets/maps/map2.png');
+    }
+
+    create() {
+
+        this.createBackground();
+
+        /*Each button corresponds to a map. If you click on a map, an integer is saved to
+         the "registry" which will be used later. The button also moves user to the next scene.*/
+        this.clickButton = this.add.image(200, 100, 'map1')
+            .setInteractive({useHandCursor: true})
+            .on('pointerdown', () => {
+                this.registry.set('selectedMapIndex', 1);
+                this.scene.start("playGame")
+            });
+
+        this.clickButton = this.add.image(600, 100, 'map2')
+            .setInteractive({useHandCursor: true})
+            .on('pointerdown', () => {
+                this.registry.set('selectedMapIndex', 2);
+                this.scene.start("playGame")
+            });
+    }
+
+    createBackground() {
+        this.add.image(-200, -190, 'background')
+        .setScale(1)
+        .setOrigin(0);
+    }
+}
+
 /* Use a class to contain our particular scene for organization sake */
 class BearGame extends Phaser.Scene {
+
+    constructor(){
+        super("playGame");
+    }
+
     platforms;
 
     players;
@@ -80,7 +161,17 @@ class BearGame extends Phaser.Scene {
     create() {
         this.createBackground();
 
-        this.loadTerrainMap('map1', 5, 1);
+        // This variable will hold the integer stored in the register from earlier
+        const selectedMapIndex = this.registry.get('selectedMapIndex');
+        
+        // Depending on the what was in the register, a particular map will be loaded
+        if(selectedMapIndex === 1){
+            this.loadTerrainMap('map1', 5, 1);
+        }
+        else if(selectedMapIndex === 2){
+            this.loadTerrainMap('map2', 5, 1);
+        }
+      
         this.createPlayers();
 
         this.createLineResources();
@@ -856,7 +947,7 @@ const config = {
     /* Specified viewport size. The size of the game window */
     width: 800,
     height: 450,
-    scene: BearGame,
+    scene: [menu, mapSelect, BearGame],
     physics: {
         default: 'arcade',
         arcade: {
@@ -866,6 +957,7 @@ const config = {
         }
     },
     pixelArt: true,
+
     // scale: {
     //     mode: Phaser.Scale.FIT,
     //     autoCenter: Phaser.Scale.CENTER_BOTH
