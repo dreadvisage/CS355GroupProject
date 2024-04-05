@@ -416,24 +416,47 @@ class BearGame extends Phaser.Scene {
         this.checkIntervalOOB(projectile);
     }
 
+    /* Randomly gets a float value between the max and min. */
+    randomNumber(min, max) {
+        return Math.random() * (max - min) + min;
+    }
+
     useAk47() {
+        /* Since having a weapon whose accuracy is 100% is kinda busted, we need to introduce
+        a small amount of variation that can occasionally cause the player to miss their shot.
+        How we do it here is that we generate two random numbers a set amount above and below 
+        where the player wants to shoot. We don't want to include values too close to the 
+        desired shot location because it's too accurate still. So we generate two random values 
+        to remove the range -50 to 50 in this case. Once we have those two values, we keep
+        whichever positive/negative value has the most variation from the original shot and 
+        apply it to the Y velocity. */
+        const variation1 = this.randomNumber(-100, -50);
+        const variation2 = this.randomNumber(50, 100);
+        var variation;
+        if (Math.abs(variation1) >= variation2) {
+            variation = variation1;
+        } else {
+            variation = variation2;
+        }
+
+
         /* We want the ak-47 to always shoot bullets that are the same speed, no matter how much
         "power" the player may put behind the attack. To do this, we need to calculate the 
         unit vector. Since we use the active pointer to determine the direction, we have to do this
         because the amount of power is determined by how far the active pointer is away from the 
         current player. When calculating the unit vector, instead we solely get the direction of the 
-        bullet. Then we can add a fixed amount of "power" behind the bullet */
+        bullet. Then we can add a fixed amount of "power" behind the bullet.  */
         const unit_vector = new Phaser.Math.Vector2(
             this.input.activePointer.worldX - this.currentPlayerObj.sprite.x, 
-            this.input.activePointer.worldY - this.currentPlayerObj.sprite.y)
-            .normalize();
+            this.input.activePointer.worldY - this.currentPlayerObj.sprite.y
+            ).normalize();
 
         const power = 1000;
         let projectile = this.physics.add.sprite(this.currentPlayerObj.sprite.x, this.currentPlayerObj.sprite.y, 'bobber-bomb')
         .setScale(0.1)
         .setVelocity(
             unit_vector.x * power, 
-            unit_vector.y * power
+            (unit_vector.y * power) + variation
         )
         this.cameras.main.startFollow(projectile, true);
 
@@ -801,6 +824,7 @@ class BearGame extends Phaser.Scene {
         } else {
             // FIXME. Ideally, I would set the this.currentPlayerObj to null to indicate there
             // are no more available players
+            // IDK what this does, I removed it and it seems to do nothing
             // if (this.currentPlayerObj.sprite.body) {
             //     this.currentPlayerObj.sprite.setVelocityX(0);
             // }
