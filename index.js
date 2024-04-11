@@ -56,6 +56,10 @@ class BearGame extends Phaser.Scene {
     cyclePlayerTextOverlay;
     cancelAttackTextOverlay;
     deadTextOverlay;
+
+    walkSound;
+    walkFallTimeout;
+    isFalling;
     
     preload() {
         // backgrounds
@@ -75,9 +79,21 @@ class BearGame extends Phaser.Scene {
         this.load.image('ak-47', 'assets/ak-47.png');
         this.load.image('spear', 'assets/spear.png');
 
+        // sounds
+        this.load.audio('bobber-bomb-explode', 'assets/sounds/bobber-bomb-explode.mp3');
+        this.load.audio('fish-gun-shoot', 'assets/sounds/fish-gun-shoot.mp3');
+        this.load.audio('gun-shoot', 'assets/sounds/gun-shoot.mp3');
+        this.load.audio('spear-swing', 'assets/sounds/spear-swing.mp3');
+        this.load.audio('grenade-pull-pin', 'assets/sounds/grenade-pull-pin.mp3');
+        this.load.audio('footsteps', 'assets/sounds/minecraft-footsteps.mp3');
+        this.load.audio('bullet-hit', 'assets/sounds/bullet-hit-sound-effect.mp3');
+        this.load.audio('background-music', 'assets/sounds/background-music.mp3');
+        this.load.audio('jump', 'assets/sounds/jump.mp3');
+
     }
 
     create() {
+
         this.createBackground();
 
         this.loadTerrainMap('map1', 5, 1);
@@ -89,6 +105,11 @@ class BearGame extends Phaser.Scene {
         this.swapWeaponKey = this.input.keyboard.addKey(NEXT_WEAPON_KEY);
         this.nextPlayerKey = this.input.keyboard.addKey(NEXT_PLAYER_KEY);
         this.movementKeys = this.input.keyboard.addKeys('W,UP,D,RIGHT,A,LEFT');
+
+        // sounds
+        this.walkSound = this.sound.add('footsteps');
+        this.jumpSound = this.sound.add('jump');
+        this.sound.play('background-music', {loop: true});
 
         this.disableUserInteraction = false;
         this.stopWeaponMove = false;
@@ -374,6 +395,9 @@ class BearGame extends Phaser.Scene {
         .setDrag(60);
         this.cameras.main.startFollow(projectile, true);
 
+        // sounds
+        this.sound.play('grenade-pull-pin');
+
         /* Will disable gravity entirely for the projectiles. More for bullet-style projectiles */
         // projectile.body.setAllowGravity(false);
         
@@ -402,6 +426,9 @@ class BearGame extends Phaser.Scene {
         )
         .setDrag(60);
         this.cameras.main.startFollow(projectile, true);
+
+        // sounds
+        this.sound.play('fish-gun-shoot');
 
         this.physics.add.collider(projectile, this.platforms, this.terrainExplosionCallback, this.terrainProcessCallback, this);
         this.playerObjects.forEach(obj => {
@@ -460,6 +487,9 @@ class BearGame extends Phaser.Scene {
         )
         this.cameras.main.startFollow(projectile, true);
 
+        // sounds
+        this.sound.play('gun-shoot');
+
         // Gives a bullet-style behavior by ignoring gravity.
         projectile.body.setAllowGravity(false);
         
@@ -504,6 +534,9 @@ class BearGame extends Phaser.Scene {
             x: (1 - target_distance_ratio) * this.currentPlayerObj.sprite.x + target_distance_ratio * this.input.activePointer.worldX,
             y: (1 - target_distance_ratio) * this.currentPlayerObj.sprite.y + target_distance_ratio * this.input.activePointer.worldY
         }
+
+        // sounds
+        this.sound.play('spear-swing');
 
         // This block produces a quick spear jab forward animation
         const animation_duration_millis = 200;
@@ -595,6 +628,10 @@ class BearGame extends Phaser.Scene {
     /* Used for things like bullets or the "head" of a spear. Something that doesn't explode. */
     objectDamageCallback(object1, object2) {
         // object2 is the player
+
+
+        // sounds
+        this.sound.play('bullet-hit');
 
         this.playerObjects.forEach(playerObj => {
             if (playerObj.sprite === object2) {
@@ -691,6 +728,9 @@ class BearGame extends Phaser.Scene {
             invis.damagePlayerList.push([obj, true]);
         });
 
+        // sounds
+        this.sound.play('bobber-bomb-explode');
+
         // destroy bobber-bomb
         object1.destroy();
 
@@ -730,6 +770,10 @@ class BearGame extends Phaser.Scene {
                     this.currentPlayerObj.isFacingLeft = true;
 
 
+                    if (!this.walkSound.isPlaying) {
+                        this.walkSound.play();
+                    }
+
                     // If blocked, player does a little hop to try and traverse the distance
                     if (this.currentPlayerObj.sprite.body.blocked.left) {
                         this.currentPlayerObj.sprite.y -= PLAYER_INCLINE_CLIMB_DIST;
@@ -744,6 +788,12 @@ class BearGame extends Phaser.Scene {
                     this.currentPlayerObj.sprite.setVelocityX(160);
                     this.currentPlayerObj.sprite.flipX = false;
                     this.currentPlayerObj.isFacingLeft = false;
+
+
+                    if (!this.walkSound.isPlaying) {
+                        this.walkSound.play();
+                    }
+                    
                     
                     // If blocked, player does a little hop to try and traverse the vertical distance
                     if (this.currentPlayerObj.sprite.body.blocked.right) {
@@ -756,11 +806,20 @@ class BearGame extends Phaser.Scene {
                         this.currentPlayerObj.weaponSprite.flipX = false;
                 } else {
                     this.currentPlayerObj.sprite.setVelocityX(0);
+                    this.walkSound.pause();
+                }
+
+                // if the player is touching the ground, they can jump again so we stop the sound.
+                if (this.currentPlayerObj.sprite.body.touching.down) {
+                    this.jumpSound.stop();
                 }
 
                 // This block controls jumping
                 if ((this.movementKeys.UP.isDown || this.movementKeys.W.isDown) && this.currentPlayerObj.sprite.body.touching.down) {
                     this.currentPlayerObj.sprite.setVelocityY(-250);
+                    if (!this.jumpSound.isPlaying) {
+                        this.jumpSound.play();
+                    }
                 }
                 
                 /* Swapping weapons entails deleting the old weapon sprite and spawning in a new one. Also updating
