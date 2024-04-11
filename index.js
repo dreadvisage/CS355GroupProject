@@ -16,6 +16,7 @@ const BOBBER_BOMB_EXPLOSION_DMG = 20;
 
 const NEXT_PLAYER_KEY = 'P';
 const NEXT_WEAPON_KEY = 'B';
+const CANCEL_ATTACK_KEY = 'ESC';
 
 
 const RESET_PLAYER_MILLIS = 1000;
@@ -45,6 +46,7 @@ class BearGame extends Phaser.Scene {
     swapWeaponKey;
 
     movementKeys;
+    cancelAttackKey;
 
     indicatorLine;
     graphics;
@@ -54,7 +56,8 @@ class BearGame extends Phaser.Scene {
 
     cycleWeaponTextOverlay;
     cyclePlayerTextOverlay;
-    cancelAttackTextOverlay;
+    cancelAttackTextOverlay1;
+    cancelAttackTextOverlay2;
     deadTextOverlay;
 
     walkSound;
@@ -105,6 +108,7 @@ class BearGame extends Phaser.Scene {
         this.swapWeaponKey = this.input.keyboard.addKey(NEXT_WEAPON_KEY);
         this.nextPlayerKey = this.input.keyboard.addKey(NEXT_PLAYER_KEY);
         this.movementKeys = this.input.keyboard.addKeys('W,UP,D,RIGHT,A,LEFT');
+        this.cancelAttackKey = this.input.keyboard.addKey(CANCEL_ATTACK_KEY);
 
         // sounds
         this.walkSound = this.sound.add('footsteps');
@@ -120,7 +124,8 @@ class BearGame extends Phaser.Scene {
 
         this.cycleWeaponTextOverlay = this.add.text(300, 300, `Use the \"${NEXT_WEAPON_KEY}\" key to cycle weapons`, { font: '16px Courier', fill: '#000000' }).setOrigin(0).setScale(1);
         this.cyclePlayerTextOverlay = this.add.text(300, 320, `Use the \"${NEXT_PLAYER_KEY}\" key to cycle players`, { font: '16px Courier', fill: '#000000' }).setOrigin(0).setScale(1);
-        this.cancelAttackTextOverlay = this.add.text(150, 340, `When holding left-click, you can right-click to cancel your attack`, { font: '16px Courier', fill: '#000000' }).setOrigin(0).setScale(1);
+        this.cancelAttackTextOverlay1 = this.add.text(240, 340, `When holding left-click, you can right-click`, { font: '16px Courier', fill: '#000000' }).setOrigin(0).setScale(1);
+        this.cancelAttackTextOverlay2 = this.add.text(240, 360, `(or press the ESC key) to cancel your attack`, { font: '16px Courier', fill: '#000000' }).setOrigin(0).setScale(1);
     }
 
     update() {
@@ -897,7 +902,7 @@ class BearGame extends Phaser.Scene {
         if (!this.disableUserInteraction) {
             // this.currentPlayerObj would only be null if all the players are killed?
             if (this.currentPlayerObj && this.playerObjects.length) {
-                if (this.input.mousePointer.leftButtonDown() && this.input.mousePointer.rightButtonDown()) {
+                if (this.input.mousePointer.leftButtonDown() && (this.input.mousePointer.rightButtonDown() || this.cancelAttackKey.isDown)) {
                     /* If both mouse buttons are being pressed, we cancel the current attack and only allow attacking
                     again if both mouse buttons are released */
                     this.currentPlayerObj.isAiming = false;
