@@ -119,6 +119,7 @@ class BearGame extends Phaser.Scene {
     players;
     currentPlayerIndex;
     currentPlayerObj;
+    playerIndicatorGraphic;
 
     /* This is used to disable user interaction with the game. Such as 
     when a projectile is in-flight and we want to wait for it to land */
@@ -127,7 +128,6 @@ class BearGame extends Phaser.Scene {
     to play an animation that moves the weaponSprite */
     stopWeaponMove;
 
-    nextPlayerKey;
     swapWeaponKey;
 
     movementKeys;
@@ -196,12 +196,12 @@ class BearGame extends Phaser.Scene {
         }
       
         this.createPlayers();
+        this.playerIndicatorGraphic = this.makePlayerIndicatorGraphic(this.currentPlayerObj.sprite.x, this.currentPlayerObj.sprite.y, BAR_FILL_COLOR, BAR_LINE_COLOR);
 
         this.createLineResources();
         this.createMouseListeners();
 
         this.swapWeaponKey = this.input.keyboard.addKey(NEXT_WEAPON_KEY);
-        this.nextPlayerKey = this.input.keyboard.addKey(NEXT_PLAYER_KEY);
         this.movementKeys = this.input.keyboard.addKeys('W,UP,D,RIGHT,A,LEFT');
         this.cancelAttackKey = this.input.keyboard.addKey(CANCEL_ATTACK_KEY);
 
@@ -218,9 +218,8 @@ class BearGame extends Phaser.Scene {
         this.cameras.main.startFollow(this.currentPlayerObj.sprite, true);
 
         this.cycleWeaponTextOverlay = this.add.text(300, 300, `Use the \"${NEXT_WEAPON_KEY}\" key to cycle weapons`, { font: '16px Courier', fill: '#000000' }).setOrigin(0).setScale(1);
-        this.cyclePlayerTextOverlay = this.add.text(300, 320, `Use the \"${NEXT_PLAYER_KEY}\" key to cycle players`, { font: '16px Courier', fill: '#000000' }).setOrigin(0).setScale(1);
-        this.cancelAttackTextOverlay1 = this.add.text(240, 340, `When holding left-click, you can right-click`, { font: '16px Courier', fill: '#000000' }).setOrigin(0).setScale(1);
-        this.cancelAttackTextOverlay2 = this.add.text(240, 360, `(or press the ESC key) to cancel your attack`, { font: '16px Courier', fill: '#000000' }).setOrigin(0).setScale(1);
+        this.cancelAttackTextOverlay1 = this.add.text(240, 320, `When holding left-click, you can right-click`, { font: '16px Courier', fill: '#000000' }).setOrigin(0).setScale(1);
+        this.cancelAttackTextOverlay2 = this.add.text(240, 340, `(or press the ESC key) to cancel your attack`, { font: '16px Courier', fill: '#000000' }).setOrigin(0).setScale(1);
     }
 
     update() {
@@ -244,6 +243,10 @@ class BearGame extends Phaser.Scene {
             obj.healthBar.x = obj.sprite.x - BAR_WIDTH/2;
             obj.healthBar.y = obj.sprite.y - BAR_DIST_ABOVE_HEAD;
         });
+
+        // move the player indicator graphic to be above the current player's head
+        this.playerIndicatorGraphic.x = this.currentPlayerObj.sprite.x - 10;
+        this.playerIndicatorGraphic.y = this.currentPlayerObj.sprite.y - 80;
     }
 
     
@@ -383,7 +386,6 @@ class BearGame extends Phaser.Scene {
             this.currentPlayerIndex = nextIndex;
     
             this.currentPlayerObj = this.playerObjects[nextIndex];
-            this.cameras.main.startFollow(this.currentPlayerObj.sprite, true);
         } else {
             this.cameras.main.stopFollow();
             this.currentPlayerObj = null;
@@ -417,7 +419,7 @@ class BearGame extends Phaser.Scene {
         bar.fillStyle(fillColor);
         bar.fillRect(0, 0, BAR_WIDTH, BAR_HEIGHT);
 
-        bar.lineStyle(1, outlineColor);
+        bar.lineStyle(BAR_LINE_WIDTH, outlineColor);
         bar.strokeRect(0, 0, BAR_WIDTH, BAR_HEIGHT);
         
         bar.x = x;
@@ -434,6 +436,18 @@ class BearGame extends Phaser.Scene {
 
         bar.lineStyle(BAR_LINE_WIDTH, BAR_LINE_COLOR);
         bar.strokeRect(0, 0, BAR_WIDTH, BAR_HEIGHT);
+    }
+
+    makePlayerIndicatorGraphic(x, y, fillColor, outlineColor) {
+        let indicator = this.add.graphics();
+
+        indicator.fillStyle(0x00ff00);
+        indicator.fillTriangle(0, 0, 20, 0, 10, 15)
+
+        indicator.lineStyle(2, outlineColor);
+        indicator.strokeTriangle(0, 0, 20, 0, 10, 15);
+
+        return indicator;
     }
 
     createLineResources() {
@@ -703,25 +717,56 @@ class BearGame extends Phaser.Scene {
         object2.destroy();
     }
 
+
+
     /* This will reset the player by panning the camera to the current player. When done panning, user interaction will be enabled 
     and other things needed to set the player back to a "normal" state of play. */
     resetPlayerFromProjectile(reset_player_millis, timeout_millis) {
+
+        /* We have a wrapper timeout over everything because it may take a second for things to process before we can
+        check if players are moving. After a second, the velocities should have been changed from zero and worth 
+        checking */
         setTimeout(() => {
-            this.cameras.main.stopFollow();
-            if (reset_player_millis > 0)
-                this.cameras.main.pan(this.currentPlayerObj.sprite.x, this.currentPlayerObj.sprite.y, reset_player_millis);
-            setTimeout(() => {
-                if (this.currentPlayerObj.weaponSprite) {
-                    this.currentPlayerObj.weaponSprite.rotation = 0;
-                    /* Specifically, this is for the bobber-bomb because we setVisible to false to give
-                    the illusion that we threw it */
-                    this.currentPlayerObj.weaponSprite.setVisible(true);
+            var check = function(){
+                var isAnyPlayerMoving = true;
+    
+                this.playerObjects.forEach(obj => {
+                    if (obj.sprite.body.velocity.x !== 0 || obj.sprite.body.velocity.y !== 0) {
+                        isAnyPlayerMoving = false;
+                    }
+                });
+    
+                // if no players are moving
+                if(isAnyPlayerMoving){
+    
+                    setTimeout(() => {
+                        this.cameras.main.stopFollow();
+                        this.nextPlayer();
+                        if (reset_player_millis > 0)
+                            this.cameras.main.pan(this.currentPlayerObj.sprite.x, this.currentPlayerObj.sprite.y, reset_player_millis);
+                        setTimeout(() => {
+                            if (this.currentPlayerObj.weaponSprite) {
+                                this.currentPlayerObj.weaponSprite.rotation = 0;
+                                /* Specifically, this is for the bobber-bomb because we setVisible to false to give
+                                the illusion that we threw it */
+                                this.currentPlayerObj.weaponSprite.setVisible(true);
+                            }
+                            
+                            this.disableUserInteraction = false;
+                            this.cameras.main.startFollow(this.currentPlayerObj.sprite, true);
+                        }, reset_player_millis);
+                    }, timeout_millis);
+    
+                } else {
+                    setTimeout(() => {check.call(this)}, 500); // check again in half a second
                 }
+            }
                 
-                this.disableUserInteraction = false;
-                this.cameras.main.startFollow(this.currentPlayerObj.sprite, true);
-            }, reset_player_millis);
-        }, timeout_millis);
+            check.call(this);
+        }, 1000);
+        
+
+        
         
     }
 
@@ -975,9 +1020,6 @@ class BearGame extends Phaser.Scene {
                         
                 }
 
-                if (Phaser.Input.Keyboard.JustDown(this.nextPlayerKey)) {
-                    this.nextPlayer();
-                }
             }
     
         } else {
@@ -1008,6 +1050,11 @@ class BearGame extends Phaser.Scene {
                     this.isCancelAttack = true;
                     this.indicatorLineGraphics.clear();
                 } else if (!this.isCancelAttack && this.input.mousePointer.leftButtonDown() && this.currentPlayerObj.sprite.body.touching.down) {
+
+                    // Player will keep moving and keep making sound if the movement keys are held down at the same time as left-click otherwise
+                    this.currentPlayerObj.sprite.setVelocity(0);
+                    this.walkSound.stop();
+
                     // need to update the world point relative to the camera so that it's accurate when we use the point
                     this.input.activePointer.updateWorldPoint(this.cameras.main);
                     this.currentPlayerObj.isAiming = true;
