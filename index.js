@@ -18,7 +18,6 @@ const NEXT_PLAYER_KEY = 'P';
 const NEXT_WEAPON_KEY = 'B';
 const CANCEL_ATTACK_KEY = 'ESC';
 
-
 const RESET_PLAYER_MILLIS = 1000;
 const RESET_PLAYER_DELAY_MILLIS = 1000;
 const OUT_OF_BOUNDS_INTERVAL_MILLIS = 500;
@@ -27,21 +26,22 @@ const OUT_OF_BOUNDS_INTERVAL_MILLIS = 500;
 // 0.6 is enough to climb 3 pixels
 const PLAYER_INCLINE_CLIMB_DIST = 1;
 
-
-
-// Class that contains the main menu scene
-class menu extends Phaser.Scene {
+// Class that contains the main Menu scene
+class Menu extends Phaser.Scene {
 
     preload()
     {
         this.load.image('background', 'assets/background.jpg');
         this.load.image('playButton', 'assets/playButton.png');
         this.load.image('bearTitle', 'assets/bearTitle.png');
+        this.load.audio('main-menu-music', 'assets/sounds/main-menu-music.mp3');
     }
 
     create() {
-
         this.createBackground();
+
+        // sounds
+        this.sound.play('main-menu-music', {loop: true});
         
         this.add.image(400, 150, 'bearTitle');
 
@@ -50,7 +50,9 @@ class menu extends Phaser.Scene {
             .setScale(0.6)
             .setInteractive({useHandCursor: true})
             // On click, start the map select scene
-            .on('pointerdown', () => this.scene.start("mapSelect"))
+            .on('pointerdown', () => {
+                this.scene.start("MapSelect")
+            })
     }
 
     createBackground() {
@@ -62,10 +64,10 @@ class menu extends Phaser.Scene {
 }
 
 // Class that contains the map selector scene
-class mapSelect extends Phaser.Scene {
+class MapSelect extends Phaser.Scene {
 
     constructor(){
-        super("mapSelect");
+        super("MapSelect");
     }
 
     preload()
@@ -85,13 +87,15 @@ class mapSelect extends Phaser.Scene {
             .setInteractive({useHandCursor: true})
             .on('pointerdown', () => {
                 this.registry.set('selectedMapIndex', 1);
-                this.scene.start("playGame")
+                this.sound.stopAll();
+                this.scene.start("playGame");
             });
 
         this.clickButton = this.add.image(600, 100, 'map2')
             .setInteractive({useHandCursor: true})
             .on('pointerdown', () => {
                 this.registry.set('selectedMapIndex', 2);
+                this.sound.stopAll();
                 this.scene.start("playGame")
             });
     }
@@ -1072,7 +1076,7 @@ const config = {
     /* Specified viewport size. The size of the game window */
     width: 800,
     height: 450,
-    scene: [menu, mapSelect, BearGame],
+    scene: [Menu, MapSelect, BearGame],
     physics: {
         default: 'arcade',
         arcade: {
