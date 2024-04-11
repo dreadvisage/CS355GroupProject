@@ -27,44 +27,82 @@ const OUT_OF_BOUNDS_INTERVAL_MILLIS = 500;
 const PLAYER_INCLINE_CLIMB_DIST = 0.5;
 
 
+class Menu extends Phaser.Scene {
+    constructor() {
+        super({ key: 'Menu' });
+        
+        // Define variables for volume button and mute button
+        this.volumeButton;
+        this.muteButton;
+        this.isMuted = false;
+    }
 
-// Class that contains the main menu scene
-class menu extends Phaser.Scene {
-
-    preload()
-    {
+    preload() {
+        // Load images
         this.load.image('background', 'assets/background.jpg');
         this.load.image('playButton', 'assets/playButton.png');
         this.load.image('bearTitle', 'assets/bearTitle.png');
+        this.load.image('volumeButton', 'assets/volumeButton.png');
+        this.load.image('muteButton', 'assets/muteButton.png');
+        this.load.image('settingsButton', 'assets/settingsButton.png');
     }
 
     create() {
-
+        // Create background
         this.createBackground();
         
+        // Add bear title image
         this.add.image(400, 150, 'bearTitle');
 
-        // This is the bear face Play button
+        // Add volume button
+        this.volumeButton = this.add.image(175, 365, 'volumeButton').setInteractive().setScale(0.175);
+        this.volumeButton.on('pointerdown', this.toggleMute, this);
+
+        // Add mute button (initially hidden)
+        this.muteButton = this.add.image(175, 365, 'muteButton').setInteractive().setScale(0.175);
+        this.muteButton.on('pointerdown', this.toggleMute, this);
+        this.muteButton.visible = false;
+
+        // Add play button
         this.clickButton = this.add.image(400, 350, 'playButton')
             .setScale(0.6)
             .setInteractive({useHandCursor: true})
-            // On click, start the map select scene
-            .on('pointerdown', () => this.scene.start("mapSelect"))
+            .on('pointerdown', () => this.scene.start("MapSelect"));
+
+        // Add settings button
+        this.clickButton = this.add.image(625, 365, 'settingsButton')
+        .setScale(0.175)
+        .setInteractive({useHandCursor: true})
+        .on('pointerdown', () => this.scene.start("MapSelect"));
     }
 
     createBackground() {
         this.add.image(-200, -190, 'background')
-        .setScale(1)
-        .setOrigin(0);
+            .setScale(1)
+            .setOrigin(0);
     }
 
+    toggleMute() {
+        if (this.isMuted) {
+            // Unmute the game
+            this.volumeButton.visible = true;
+            this.muteButton.visible = false;
+            this.isMuted = false;
+        } else {
+            // Mute the game
+            this.volumeButton.visible = false;
+            this.muteButton.visible = true;
+            this.isMuted = true;
+        }
+    }
 }
 
+
 // Class that contains the map selector scene
-class mapSelect extends Phaser.Scene {
+class MapSelect extends Phaser.Scene {
 
     constructor(){
-        super("mapSelect");
+        super("MapSelect");
     }
 
     preload()
@@ -947,7 +985,7 @@ const config = {
     /* Specified viewport size. The size of the game window */
     width: 800,
     height: 450,
-    scene: [menu, mapSelect, BearGame],
+    scene: [Menu, MapSelect, BearGame],
     physics: {
         default: 'arcade',
         arcade: {
