@@ -3,11 +3,16 @@ const WORLD_HEIGHT = 646;
 
 const BAR_WIDTH = 80;
 const BAR_HEIGHT = 10;
-const BAR_DIST_ABOVE_HEAD = 60;
+const BAR_HEALTH_DIST_ABOVE_HEAD = 70;
+const BAR_STAMINA_DIST_ABOVE_HEAD = 55;
 const BAR_MAX_HEALTH = BAR_WIDTH;
-const BAR_FILL_COLOR = 0xe74c3c;
+const BAR_HEALTH_FILL_COLOR = 0xe74c3c;
+const BAR_STAMINA_FILL_COLOR = 0x308c3f;
 const BAR_LINE_COLOR = 0x000000;
 const BAR_LINE_WIDTH = 2;
+const BAR_PLAYER_INDICATOR_DIST_ABOVE_HEAD = 90;
+
+const STAMINA_DIVIDE_MODIFIER = 4;
 
 const INDICATOR_LINE_WIDTH = 2;
 const INDICATOR_LINE_COLOR = 0xff0000;
@@ -25,6 +30,8 @@ const OUT_OF_BOUNDS_INTERVAL_MILLIS = 500;
 // 0.5 is enough to climb 2 pixels high but not 3 pixels
 // 0.6 is enough to climb 3 pixels
 const PLAYER_INCLINE_CLIMB_DIST = 1;
+
+const PLAYER_STAMINA = 80;
 
 // Class that contains the main Menu scene
 class Menu extends Phaser.Scene {
@@ -196,7 +203,7 @@ class BearGame extends Phaser.Scene {
         }
       
         this.createPlayers();
-        this.playerIndicatorGraphic = this.makePlayerIndicatorGraphic(this.currentPlayerObj.sprite.x, this.currentPlayerObj.sprite.y, BAR_FILL_COLOR, BAR_LINE_COLOR);
+        this.playerIndicatorGraphic = this.makePlayerIndicatorGraphic(this.currentPlayerObj.sprite.x, this.currentPlayerObj.sprite.y, BAR_HEALTH_FILL_COLOR, BAR_LINE_COLOR);
 
         this.createLineResources();
         this.createMouseListeners();
@@ -213,6 +220,7 @@ class BearGame extends Phaser.Scene {
         this.disableUserInteraction = false;
         this.stopWeaponMove = false;
         this.isCancelAttack = false;
+        this.canPlayerMove = true;
         
         this.cameras.main.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
         this.cameras.main.startFollow(this.currentPlayerObj.sprite, true);
@@ -224,6 +232,7 @@ class BearGame extends Phaser.Scene {
 
     update() {
         // console.log(`FPS: ${Math.round(game.loop.actualFps)}`);
+
         this.checkKeyboardInput();
         this.checkMouseInput();
 
@@ -238,15 +247,19 @@ class BearGame extends Phaser.Scene {
             }
         });
 
-        // move health bars to players
+        // move bars to players
         this.playerObjects.forEach(obj => {
             obj.healthBar.x = obj.sprite.x - BAR_WIDTH/2;
-            obj.healthBar.y = obj.sprite.y - BAR_DIST_ABOVE_HEAD;
+            obj.healthBar.y = obj.sprite.y - BAR_HEALTH_DIST_ABOVE_HEAD;
+            obj.staminaBar.x = obj.sprite.x - BAR_WIDTH/2;
+            obj.staminaBar.y = obj.sprite.y - BAR_STAMINA_DIST_ABOVE_HEAD;
         });
 
         // move the player indicator graphic to be above the current player's head
         this.playerIndicatorGraphic.x = this.currentPlayerObj.sprite.x - 10;
-        this.playerIndicatorGraphic.y = this.currentPlayerObj.sprite.y - 80;
+        this.playerIndicatorGraphic.y = this.currentPlayerObj.sprite.y - BAR_PLAYER_INDICATOR_DIST_ABOVE_HEAD;
+
+        this.updatePlayerStamina();
     }
 
     
@@ -336,6 +349,8 @@ class BearGame extends Phaser.Scene {
         // set current player to be the first in the list
         this.currentPlayerIndex = 0;
         this.currentPlayerObj = this.playerObjects[this.currentPlayerIndex];
+
+        this.lastPlayerPosition = {x: 450, y: 420};
     }
 
     // Key is the texture key. ID is the player "name"
@@ -350,8 +365,10 @@ class BearGame extends Phaser.Scene {
         sprite.setDrag(100);
 
         // Center health bar and set it to be a little above the player's head
-        const healthBar = this.makeBar(sprite.x - BAR_WIDTH/2, sprite.y - BAR_DIST_ABOVE_HEAD, BAR_FILL_COLOR, BAR_LINE_COLOR);
-        this.setBarValue(healthBar, BAR_MAX_HEALTH);
+        const healthBar = this.makeBar(sprite.x - BAR_WIDTH/2, sprite.y - BAR_HEALTH_DIST_ABOVE_HEAD, BAR_HEALTH_FILL_COLOR, BAR_LINE_COLOR);
+        this.setBarValue(healthBar, BAR_MAX_HEALTH, BAR_HEALTH_FILL_COLOR);
+        const staminaBar = this.makeBar(sprite.x - BAR_WIDTH/2, sprite.y - BAR_STAMINA_DIST_ABOVE_HEAD, BAR_STAMINA_FILL_COLOR, BAR_LINE_COLOR);
+        this.setBarValue(staminaBar, PLAYER_STAMINA, BAR_STAMINA_FILL_COLOR);
 
         // Player object
         let playerObj = {
@@ -359,6 +376,8 @@ class BearGame extends Phaser.Scene {
             sprite: sprite,
             health: BAR_MAX_HEALTH,
             healthBar: healthBar,
+            stamina: PLAYER_STAMINA,
+            staminaBar: staminaBar,
             // used to initially position weapons and their facing direction relative to the player
             isFacingLeft: false,
             // we use this to stop movement when the player is aiming
@@ -386,6 +405,9 @@ class BearGame extends Phaser.Scene {
             this.currentPlayerIndex = nextIndex;
     
             this.currentPlayerObj = this.playerObjects[nextIndex];
+            this.lastPlayerPosition = {x: this.currentPlayerObj.sprite.x, y: this.currentPlayerObj.sprite.y};
+            this.currentPlayerObj.stamina = PLAYER_STAMINA;
+            this.canPlayerMove = true;
         } else {
             this.cameras.main.stopFollow();
             this.currentPlayerObj = null;
@@ -413,6 +435,29 @@ class BearGame extends Phaser.Scene {
         this.playerObjects.splice(idx, 1);
     }
 
+
+    updatePlayerStamina() {
+        var distance_walked_x = Math.abs(this.currentPlayerObj.sprite.x - this.lastPlayerPosition.x);
+        // divide by value because i haven't gotten around to having the bars be percentages of values 
+        // instead
+        distance_walked_x /= STAMINA_DIVIDE_MODIFIER;
+
+        if (this.currentPlayerObj.stamina > 0) {
+            this.currentPlayerObj.stamina -= distance_walked_x;
+            this.setBarValue(this.currentPlayerObj.staminaBar, this.currentPlayerObj.stamina, BAR_STAMINA_FILL_COLOR);
+        } else {
+            this.canPlayerMove = false;
+        }
+        
+        // we only want the current player's stamina bar to be visible
+        this.playerObjects.forEach(obj => {
+            obj.staminaBar.setVisible(obj === this.currentPlayerObj);
+        });
+
+
+        this.lastPlayerPosition = {x: this.currentPlayerObj.sprite.x, y: this.currentPlayerObj.sprite.y};
+    }
+
     makeBar(x, y, fillColor, outlineColor) {
         let bar = this.add.graphics();
 
@@ -428,10 +473,10 @@ class BearGame extends Phaser.Scene {
         return bar;
     }
 
-    setBarValue(bar, value) {
+    setBarValue(bar, value, fillColor) {
         bar.clear();
 
-        bar.fillStyle(BAR_FILL_COLOR);
+        bar.fillStyle(fillColor);
         bar.fillRect(0, 0, value, BAR_HEIGHT);
 
         bar.lineStyle(BAR_LINE_WIDTH, BAR_LINE_COLOR);
@@ -790,7 +835,7 @@ class BearGame extends Phaser.Scene {
                     playerObj.health = newHealth;
                 }
         
-                this.setBarValue(playerObj.healthBar, playerObj.health);
+                this.setBarValue(playerObj.healthBar, playerObj.health, BAR_HEALTH_FILL_COLOR);
             }
         });
 
@@ -850,7 +895,7 @@ class BearGame extends Phaser.Scene {
                     object2.body.velocity.x += Math.cos(angle) * 250;
                 }
         
-                this.setBarValue(playerObj.healthBar, playerObj.health);
+                this.setBarValue(playerObj.healthBar, playerObj.health, BAR_HEALTH_FILL_COLOR);
                 object1.damagePlayerList[i][1] = false;
 
                 
@@ -910,45 +955,52 @@ class BearGame extends Phaser.Scene {
             // this.currentPlayerObj would only be null if all the players are killed?
             if (this.currentPlayerObj && this.playerObjects.length) {
                 if (this.movementKeys.LEFT.isDown || this.movementKeys.A.isDown) {
-                    this.currentPlayerObj.sprite.setVelocityX(-160);
                     this.currentPlayerObj.sprite.flipX = true;
                     this.currentPlayerObj.isFacingLeft = true;
-
-
-                    if (!this.walkSound.isPlaying) {
-                        this.walkSound.play();
-                    }
-
-                    // If blocked, player does a little hop to try and traverse the distance
-                    if (this.currentPlayerObj.sprite.body.blocked.left) {
-                        this.currentPlayerObj.sprite.y -= PLAYER_INCLINE_CLIMB_DIST;
-                    }
-        
                     if (this.currentPlayerObj.weaponKey == 'fish-gun' 
-                    || this.currentPlayerObj.weaponKey == 'ak-47'
-                    || this.currentPlayerObj.weaponKey == 'spear')
-                        this.currentPlayerObj.weaponSprite.flipX = true;
+                        || this.currentPlayerObj.weaponKey == 'ak-47'
+                        || this.currentPlayerObj.weaponKey == 'spear')
+                            this.currentPlayerObj.weaponSprite.flipX = true;
+
+
+                    if (this.canPlayerMove) {
+                        this.currentPlayerObj.sprite.setVelocityX(-160);
+                        if (!this.walkSound.isPlaying) {
+                            this.walkSound.play();
+                        }
+
+                        // If blocked, player does a little hop to try and traverse the distance
+                        if (this.currentPlayerObj.sprite.body.blocked.left) {
+                            this.currentPlayerObj.sprite.y -= PLAYER_INCLINE_CLIMB_DIST;
+                        }
+                    } else {
+                        this.currentPlayerObj.sprite.setVelocityX(0);
+                        this.walkSound.pause();
+                    }  
                     
                 } else if (this.movementKeys.RIGHT.isDown || this.movementKeys.D.isDown) {
-                    this.currentPlayerObj.sprite.setVelocityX(160);
                     this.currentPlayerObj.sprite.flipX = false;
                     this.currentPlayerObj.isFacingLeft = false;
-
-
-                    if (!this.walkSound.isPlaying) {
-                        this.walkSound.play();
-                    }
-                    
-                    
-                    // If blocked, player does a little hop to try and traverse the vertical distance
-                    if (this.currentPlayerObj.sprite.body.blocked.right) {
-                        this.currentPlayerObj.sprite.y -= PLAYER_INCLINE_CLIMB_DIST;
-                    }
-        
                     if (this.currentPlayerObj.weaponKey == 'fish-gun' 
-                    || this.currentPlayerObj.weaponKey == 'ak-47'
-                    || this.currentPlayerObj.weaponKey == 'spear')
-                        this.currentPlayerObj.weaponSprite.flipX = false;
+                        || this.currentPlayerObj.weaponKey == 'ak-47'
+                        || this.currentPlayerObj.weaponKey == 'spear')
+                            this.currentPlayerObj.weaponSprite.flipX = false;
+
+
+                    if (this.canPlayerMove) {
+                        this.currentPlayerObj.sprite.setVelocityX(160);
+                        if (!this.walkSound.isPlaying) {
+                            this.walkSound.play();
+                        }
+                        
+                        // If blocked, player does a little hop to try and traverse the vertical distance
+                        if (this.currentPlayerObj.sprite.body.blocked.right) {
+                            this.currentPlayerObj.sprite.y -= PLAYER_INCLINE_CLIMB_DIST;
+                        }
+                    } else {
+                        this.currentPlayerObj.sprite.setVelocityX(0);
+                        this.walkSound.pause();
+                    }
                 } else {
                     this.currentPlayerObj.sprite.setVelocityX(0);
                     this.walkSound.pause();
@@ -1029,6 +1081,7 @@ class BearGame extends Phaser.Scene {
             // if (this.currentPlayerObj.sprite.body) {
             //     this.currentPlayerObj.sprite.setVelocityX(0);
             // }
+
         }
 
         
