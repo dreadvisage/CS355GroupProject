@@ -16,16 +16,11 @@ const BOBBER_BOMB_EXPLOSION_DMG = 20;
 
 const NEXT_PLAYER_KEY = 'P';
 const NEXT_WEAPON_KEY = 'B';
-
+const CANCEL_ATTACK_KEY = 'ESC';
 
 const RESET_PLAYER_MILLIS = 1000;
 const RESET_PLAYER_DELAY_MILLIS = 1000;
 const OUT_OF_BOUNDS_INTERVAL_MILLIS = 500;
-
-// 0.5 is enough to climb 2 pixels high but not 3 pixels
-// 0.6 is enough to climb 3 pixels
-const PLAYER_INCLINE_CLIMB_DIST = 0.5;
-
 
 class Menu extends Phaser.Scene {
     constructor() {
@@ -45,11 +40,14 @@ class Menu extends Phaser.Scene {
         this.load.image('volumeButton', 'assets/volumeButton.png');
         this.load.image('muteButton', 'assets/muteButton.png');
         this.load.image('instructionsButton', 'assets/instructionsButton.png');
+        this.load.audio('main-menu-music', 'assets/sounds/main-menu-music.mp3');
     }
 
     create() {
-        // Create background
         this.createBackground();
+
+        // sounds
+        this.sound.play('main-menu-music', {loop: true});
         
         // Add bear title image
         this.add.image(400, 150, 'bearTitle');
@@ -151,7 +149,8 @@ class MapSelect extends Phaser.Scene {
             .setInteractive({useHandCursor: true})
             .on('pointerdown', () => {
                 this.registry.set('selectedMapIndex', 1);
-                this.scene.start("playGame")
+                this.sound.stopAll();
+                this.scene.start("playGame");
             });
 
 
@@ -160,6 +159,7 @@ class MapSelect extends Phaser.Scene {
             .setInteractive({useHandCursor: true})
             .on('pointerdown', () => {
                 this.registry.set('selectedMapIndex', 2);
+                this.sound.stopAll();
                 this.scene.start("playGame")
             });
     }
@@ -228,6 +228,7 @@ class BearGame extends Phaser.Scene {
     swapWeaponKey;
 
     movementKeys;
+    cancelAttackKey;
 
     indicatorLine;
     graphics;
@@ -237,8 +238,13 @@ class BearGame extends Phaser.Scene {
 
     cycleWeaponTextOverlay;
     cyclePlayerTextOverlay;
-    cancelAttackTextOverlay;
+    cancelAttackTextOverlay1;
+    cancelAttackTextOverlay2;
     deadTextOverlay;
+
+    walkSound;
+    walkFallTimeout;
+    isFalling;
     
     preload() {
         // backgrounds
@@ -258,9 +264,21 @@ class BearGame extends Phaser.Scene {
         this.load.image('ak-47', 'assets/ak-47.png');
         this.load.image('spear', 'assets/spear.png');
 
+        // sounds
+        this.load.audio('bobber-bomb-explode', 'assets/sounds/bobber-bomb-explode.mp3');
+        this.load.audio('fish-gun-shoot', 'assets/sounds/fish-gun-shoot.mp3');
+        this.load.audio('gun-shoot', 'assets/sounds/gun-shoot.mp3');
+        this.load.audio('spear-swing', 'assets/sounds/spear-swing.mp3');
+        this.load.audio('grenade-pull-pin', 'assets/sounds/grenade-pull-pin.mp3');
+        this.load.audio('footsteps', 'assets/sounds/minecraft-footsteps.mp3');
+        this.load.audio('bullet-hit', 'assets/sounds/bullet-hit-sound-effect.mp3');
+        this.load.audio('background-music', 'assets/sounds/background-music.mp3');
+        this.load.audio('jump', 'assets/sounds/jump.mp3');
+
     }
 
     create() {
+
         this.createBackground();
 
         // This variable will hold the integer stored in the register from earlier
@@ -282,6 +300,12 @@ class BearGame extends Phaser.Scene {
         this.swapWeaponKey = this.input.keyboard.addKey(NEXT_WEAPON_KEY);
         this.nextPlayerKey = this.input.keyboard.addKey(NEXT_PLAYER_KEY);
         this.movementKeys = this.input.keyboard.addKeys('W,UP,D,RIGHT,A,LEFT');
+        this.cancelAttackKey = this.input.keyboard.addKey(CANCEL_ATTACK_KEY);
+
+        // sounds
+        this.walkSound = this.sound.add('footsteps');
+        this.jumpSound = this.sound.add('jump');
+        this.sound.play('background-music', {loop: true});
 
         this.disableUserInteraction = false;
         this.stopWeaponMove = false;
@@ -292,7 +316,8 @@ class BearGame extends Phaser.Scene {
 
         this.cycleWeaponTextOverlay = this.add.text(300, 300, `Use the \"${NEXT_WEAPON_KEY}\" key to cycle weapons`, { font: '16px Courier', fill: '#000000' }).setOrigin(0).setScale(1);
         this.cyclePlayerTextOverlay = this.add.text(300, 320, `Use the \"${NEXT_PLAYER_KEY}\" key to cycle players`, { font: '16px Courier', fill: '#000000' }).setOrigin(0).setScale(1);
-        this.cancelAttackTextOverlay = this.add.text(150, 340, `When holding left-click, you can right-click to cancel your attack`, { font: '16px Courier', fill: '#000000' }).setOrigin(0).setScale(1);
+        this.cancelAttackTextOverlay1 = this.add.text(240, 340, `When holding left-click, you can right-click`, { font: '16px Courier', fill: '#000000' }).setOrigin(0).setScale(1);
+        this.cancelAttackTextOverlay2 = this.add.text(240, 360, `(or press the ESC key) to cancel your attack`, { font: '16px Courier', fill: '#000000' }).setOrigin(0).setScale(1);
     }
 
     update() {
@@ -415,6 +440,8 @@ class BearGame extends Phaser.Scene {
         sprite.setBounce(0);
         sprite.setCollideWorldBounds(true);
         sprite.setPushable(false);
+        // slows down the player if they are "pushed" away
+        sprite.setDrag(100);
 
         // Center health bar and set it to be a little above the player's head
         const healthBar = this.makeBar(sprite.x - BAR_WIDTH/2, sprite.y - BAR_DIST_ABOVE_HEAD, BAR_FILL_COLOR, BAR_LINE_COLOR);
@@ -565,6 +592,9 @@ class BearGame extends Phaser.Scene {
         .setDrag(60);
         this.cameras.main.startFollow(projectile, true);
 
+        // sounds
+        this.sound.play('grenade-pull-pin');
+
         /* Will disable gravity entirely for the projectiles. More for bullet-style projectiles */
         // projectile.body.setAllowGravity(false);
         
@@ -594,6 +624,9 @@ class BearGame extends Phaser.Scene {
         .setDrag(60);
         this.cameras.main.startFollow(projectile, true);
 
+        // sounds
+        this.sound.play('fish-gun-shoot');
+
         this.physics.add.collider(projectile, this.platforms, this.terrainExplosionCallback, this.terrainProcessCallback, this);
         this.playerObjects.forEach(obj => {
             // Remove collision for the current player to avoid hitting yourself
@@ -607,26 +640,52 @@ class BearGame extends Phaser.Scene {
         this.checkIntervalOOB(projectile);
     }
 
+    /* Randomly gets a float value between the max and min. */
+    randomNumber(min, max) {
+        return Math.random() * (max - min) + min;
+    }
+
     useAk47() {
+        /* Since having a weapon whose accuracy is 100% is kinda busted, we need to introduce
+        a small amount of variation that can occasionally cause the player to miss their shot.
+        How we do it here is that we generate two random numbers a set amount above and below 
+        where the player wants to shoot. We don't want to include values too close to the 
+        desired shot location because it's too accurate still. So we generate two random values 
+        to remove the range -50 to 50 in this case. Once we have those two values, we keep
+        whichever positive/negative value has the most variation from the original shot and 
+        apply it to the Y velocity. */
+        const variation1 = this.randomNumber(-100, -50);
+        const variation2 = this.randomNumber(50, 100);
+        var variation;
+        if (Math.abs(variation1) >= variation2) {
+            variation = variation1;
+        } else {
+            variation = variation2;
+        }
+
+
         /* We want the ak-47 to always shoot bullets that are the same speed, no matter how much
         "power" the player may put behind the attack. To do this, we need to calculate the 
         unit vector. Since we use the active pointer to determine the direction, we have to do this
         because the amount of power is determined by how far the active pointer is away from the 
         current player. When calculating the unit vector, instead we solely get the direction of the 
-        bullet. Then we can add a fixed amount of "power" behind the bullet */
+        bullet. Then we can add a fixed amount of "power" behind the bullet.  */
         const unit_vector = new Phaser.Math.Vector2(
             this.input.activePointer.worldX - this.currentPlayerObj.sprite.x, 
-            this.input.activePointer.worldY - this.currentPlayerObj.sprite.y)
-            .normalize();
+            this.input.activePointer.worldY - this.currentPlayerObj.sprite.y
+            ).normalize();
 
         const power = 1000;
         let projectile = this.physics.add.sprite(this.currentPlayerObj.sprite.x, this.currentPlayerObj.sprite.y, 'bobber-bomb')
         .setScale(0.1)
         .setVelocity(
             unit_vector.x * power, 
-            unit_vector.y * power
+            (unit_vector.y * power) + variation
         )
         this.cameras.main.startFollow(projectile, true);
+
+        // sounds
+        this.sound.play('gun-shoot');
 
         // Gives a bullet-style behavior by ignoring gravity.
         projectile.body.setAllowGravity(false);
@@ -672,6 +731,9 @@ class BearGame extends Phaser.Scene {
             x: (1 - target_distance_ratio) * this.currentPlayerObj.sprite.x + target_distance_ratio * this.input.activePointer.worldX,
             y: (1 - target_distance_ratio) * this.currentPlayerObj.sprite.y + target_distance_ratio * this.input.activePointer.worldY
         }
+
+        // sounds
+        this.sound.play('spear-swing');
 
         // This block produces a quick spear jab forward animation
         const animation_duration_millis = 200;
@@ -764,6 +826,10 @@ class BearGame extends Phaser.Scene {
     objectDamageCallback(object1, object2) {
         // object2 is the player
 
+
+        // sounds
+        this.sound.play('bullet-hit');
+
         this.playerObjects.forEach(playerObj => {
             if (playerObj.sprite === object2) {
                 const newHealth = playerObj.health - BOBBER_BOMB_EXPLOSION_DMG;
@@ -787,12 +853,27 @@ class BearGame extends Phaser.Scene {
         such as the spear, we want to handle those differently elsewhere */
         if (this.currentPlayerObj.weaponKey != 'spear') {
             this.resetPlayerFromProjectile(RESET_PLAYER_MILLIS, RESET_PLAYER_DELAY_MILLIS);
+        } else {
+            // Calculates Spear knock back
+            if (object2.body) {
+                const pushBackPoint = {
+                    x: object1.x,
+                    y: object1.y
+                };
+                const playerPoint = {
+                    x: object2.x,
+                    y: object2.y
+                };
+                const angle = Phaser.Math.Angle.BetweenPoints(pushBackPoint, playerPoint);
+                object2.body.velocity.y -= Math.sin(angle) * 200;
+                object2.body.velocity.x += Math.cos(angle) * 250;
+            }
         }
 
     }
 
     /* Used in combination with terrainExplosionCallback */
-    damagePlayerCallback(object1, object2) {
+    explosionDamagePlayerCallback(object1, object2) {
         // obj2 is the player
 
         for (var i = 0; i < object1.damagePlayerList.length; ++i) {
@@ -808,9 +889,25 @@ class BearGame extends Phaser.Scene {
                 } else {
                     playerObj.health = newHealth;
                 }
+
+                if (object2.body) {
+                    const pushBackPoint = {
+                        x: object1.x + 40,
+                        y: object1.y + 40
+                    };
+                    const playerPoint = {
+                        x: object2.x,
+                        y: object2.y
+                    };
+                    const angle = Phaser.Math.Angle.BetweenPoints(pushBackPoint, playerPoint);
+                    object2.body.velocity.y += Math.sin(angle) * 400;
+                    object2.body.velocity.x += Math.cos(angle) * 250;
+                }
         
                 this.setBarValue(playerObj.healthBar, playerObj.health);
                 object1.damagePlayerList[i][1] = false;
+
+                
             }
         }
         
@@ -830,12 +927,15 @@ class BearGame extends Phaser.Scene {
             invis.damagePlayerList.push([obj, true]);
         });
 
+        // sounds
+        this.sound.play('bobber-bomb-explode');
+
         // destroy bobber-bomb
         object1.destroy();
 
         this.physics.add.collider(invis, this.platforms, this.destroyTerrainCallback, this.terrainProcessCallback, this);
         this.playerObjects.forEach(obj => {
-            let collider = this.physics.add.collider(invis, obj.sprite, this.damagePlayerCallback, this.terrainProcessCallback, this);
+            let collider = this.physics.add.collider(invis, obj.sprite, this.explosionDamagePlayerCallback, this.terrainProcessCallback, this);
             collider.overlapOnly = true;
         });
         
@@ -869,6 +969,10 @@ class BearGame extends Phaser.Scene {
                     this.currentPlayerObj.isFacingLeft = true;
 
 
+                    if (!this.walkSound.isPlaying) {
+                        this.walkSound.play();
+                    }
+
                     // If blocked, player does a little hop to try and traverse the distance
                     if (this.currentPlayerObj.sprite.body.blocked.left) {
                         this.currentPlayerObj.sprite.y -= PLAYER_INCLINE_CLIMB_DIST;
@@ -883,6 +987,12 @@ class BearGame extends Phaser.Scene {
                     this.currentPlayerObj.sprite.setVelocityX(160);
                     this.currentPlayerObj.sprite.flipX = false;
                     this.currentPlayerObj.isFacingLeft = false;
+
+
+                    if (!this.walkSound.isPlaying) {
+                        this.walkSound.play();
+                    }
+                    
                     
                     // If blocked, player does a little hop to try and traverse the vertical distance
                     if (this.currentPlayerObj.sprite.body.blocked.right) {
@@ -895,11 +1005,20 @@ class BearGame extends Phaser.Scene {
                         this.currentPlayerObj.weaponSprite.flipX = false;
                 } else {
                     this.currentPlayerObj.sprite.setVelocityX(0);
+                    this.walkSound.pause();
+                }
+
+                // if the player is touching the ground, they can jump again so we stop the sound.
+                if (this.currentPlayerObj.sprite.body.touching.down) {
+                    this.jumpSound.stop();
                 }
 
                 // This block controls jumping
                 if ((this.movementKeys.UP.isDown || this.movementKeys.W.isDown) && this.currentPlayerObj.sprite.body.touching.down) {
                     this.currentPlayerObj.sprite.setVelocityY(-250);
+                    if (!this.jumpSound.isPlaying) {
+                        this.jumpSound.play();
+                    }
                 }
                 
                 /* Swapping weapons entails deleting the old weapon sprite and spawning in a new one. Also updating
@@ -961,7 +1080,12 @@ class BearGame extends Phaser.Scene {
             }
     
         } else {
-            this.currentPlayerObj.sprite.setVelocityX(0);
+            // FIXME. Ideally, I would set the this.currentPlayerObj to null to indicate there
+            // are no more available players
+            // IDK what this does, I removed it and it seems to do nothing
+            // if (this.currentPlayerObj.sprite.body) {
+            //     this.currentPlayerObj.sprite.setVelocityX(0);
+            // }
         }
 
         
@@ -972,7 +1096,7 @@ class BearGame extends Phaser.Scene {
         if (!this.disableUserInteraction) {
             // this.currentPlayerObj would only be null if all the players are killed?
             if (this.currentPlayerObj && this.playerObjects.length) {
-                if (this.input.mousePointer.leftButtonDown() && this.input.mousePointer.rightButtonDown()) {
+                if (this.input.mousePointer.leftButtonDown() && (this.input.mousePointer.rightButtonDown() || this.cancelAttackKey.isDown)) {
                     /* If both mouse buttons are being pressed, we cancel the current attack and only allow attacking
                     again if both mouse buttons are released */
                     this.currentPlayerObj.isAiming = false;
