@@ -22,18 +22,24 @@ const RESET_PLAYER_MILLIS = 1000;
 const RESET_PLAYER_DELAY_MILLIS = 1000;
 const OUT_OF_BOUNDS_INTERVAL_MILLIS = 500;
 
-// 0.5 is enough to climb 2 pixels high but not 3 pixels
-// 0.6 is enough to climb 3 pixels
-const PLAYER_INCLINE_CLIMB_DIST = 1;
-
-// Class that contains the main Menu scene
 class Menu extends Phaser.Scene {
+    constructor() {
+        super({ key: 'Menu' });
+        
+        // Define variables for volume button and mute button
+        this.volumeButton;
+        this.muteButton;
+        this.isMuted = false;
+    }
 
-    preload()
-    {
+    preload() {
+        // Load images
         this.load.image('background', 'assets/background.jpg');
         this.load.image('playButton', 'assets/playButton.png');
         this.load.image('bearTitle', 'assets/bearTitle.png');
+        this.load.image('volumeButton', 'assets/volumeButton.png');
+        this.load.image('muteButton', 'assets/muteButton.png');
+        this.load.image('instructionsButton', 'assets/instructionsButton.png');
         this.load.audio('main-menu-music', 'assets/sounds/main-menu-music.mp3');
     }
 
@@ -43,25 +49,52 @@ class Menu extends Phaser.Scene {
         // sounds
         this.sound.play('main-menu-music', {loop: true});
         
+        // Add bear title image
         this.add.image(400, 150, 'bearTitle');
 
-        // This is the bear face Play button
+        // Add volume button
+        this.volumeButton = this.add.image(175, 365, 'volumeButton').setInteractive().setScale(0.175);
+        this.volumeButton.on('pointerdown', this.toggleMute, this);
+
+        // Add mute button (initially hidden)
+        this.muteButton = this.add.image(175, 365, 'muteButton').setInteractive().setScale(0.175);
+        this.muteButton.on('pointerdown', this.toggleMute, this);
+        this.muteButton.visible = false;
+
+        // Add play button
         this.clickButton = this.add.image(400, 350, 'playButton')
             .setScale(0.6)
             .setInteractive({useHandCursor: true})
-            // On click, start the map select scene
-            .on('pointerdown', () => {
-                this.scene.start("MapSelect")
-            })
+            .on('pointerdown', () => this.scene.start("MapSelect"));
+
+        // Add settings button
+        this.clickButton = this.add.image(625, 365, 'instructionsButton')
+        .setScale(0.175)
+        .setInteractive({useHandCursor: true})
+        .on('pointerdown', () => this.scene.start("MapSelect"));
     }
 
     createBackground() {
         this.add.image(-200, -190, 'background')
-        .setScale(1)
-        .setOrigin(0);
+            .setScale(1)
+            .setOrigin(0);
     }
 
+    toggleMute() {
+        if (this.isMuted) {
+            // Unmute the game
+            this.volumeButton.visible = true;
+            this.muteButton.visible = false;
+            this.isMuted = false;
+        } else {
+            // Mute the game
+            this.volumeButton.visible = false;
+            this.muteButton.visible = true;
+            this.isMuted = true;
+        }
+    }
 }
+
 
 // Class that contains the map selector scene
 class MapSelect extends Phaser.Scene {
@@ -73,6 +106,10 @@ class MapSelect extends Phaser.Scene {
     preload()
     {
         this.load.image('background', 'assets/background.jpg');
+        this.load.image('back1', 'assets/back1.png');
+        this.load.image('back2', 'assets/back2.png');
+        this.load.image('back3', 'assets/back3.png');
+        this.load.image('back4', 'assets/back4.png');
         this.load.image('map1', 'assets/maps/map1.png');
         this.load.image('map2', 'assets/maps/map2.png');
     }
@@ -81,9 +118,34 @@ class MapSelect extends Phaser.Scene {
 
         this.createBackground();
 
+        this.add.image(235, 110, 'back1').setScale(0.4);
+        this.add.image(565, 110, 'back2').setScale(0.4);
+        this.add.image(235, 325, 'back3').setScale(0.4);
+        this.add.image(565, 325, 'back4').setScale(0.4);
+        
+
         /*Each button corresponds to a map. If you click on a map, an integer is saved to
          the "registry" which will be used later. The button also moves user to the next scene.*/
-        this.clickButton = this.add.image(200, 100, 'map1')
+        this.clickButton = this.add.image(235, 85, 'map1')
+            .setScale(0.65)
+            .setInteractive({useHandCursor: true})
+            .on('pointerdown', () => {
+                this.registry.set('selectedMapIndex', 1);
+                this.scene.start("playGame")
+            });
+
+
+        this.clickButton = this.add.image(565, 85, 'map2')
+            .setScale(0.65)
+            .setInteractive({useHandCursor: true})
+            .on('pointerdown', () => {
+                this.registry.set('selectedMapIndex', 2);
+                this.scene.start("playGame")
+            });
+
+
+        this.clickButton = this.add.image(235, 300, 'map1')
+            .setScale(0.65)
             .setInteractive({useHandCursor: true})
             .on('pointerdown', () => {
                 this.registry.set('selectedMapIndex', 1);
@@ -91,13 +153,48 @@ class MapSelect extends Phaser.Scene {
                 this.scene.start("playGame");
             });
 
-        this.clickButton = this.add.image(600, 100, 'map2')
+
+        this.clickButton = this.add.image(565, 300, 'map2')
+            .setScale(0.65)
             .setInteractive({useHandCursor: true})
             .on('pointerdown', () => {
                 this.registry.set('selectedMapIndex', 2);
                 this.sound.stopAll();
                 this.scene.start("playGame")
             });
+    }
+
+    createBackground() {
+        this.add.image(-200, -190, 'background')
+        .setScale(1)
+        .setOrigin(0);
+    }
+}
+
+class EndScreen extends Phaser.Scene {
+
+    constructor(){
+        super("EndScreen");
+    }
+
+    preload()
+    {
+        this.load.image('background', 'assets/background.jpg');
+        this.load.image('player1Win', 'assets/player1Win.png');
+        this.load.image('player2Win', 'assets/player2Win.png');
+        this.load.image('menuButton', 'assets/menuButton.png');
+    }
+
+    create()
+    {
+        this.createBackground();
+
+        this.add.image(400, 185, 'player1Win').setScale(0.7);
+
+        this.clickButton = this.add.image(400, 405, 'menuButton')
+            .setScale(0.4)
+            .setInteractive({useHandCursor: true})
+            .on('pointerdown', () => this.scene.start("Menu"));
     }
 
     createBackground() {
@@ -741,6 +838,7 @@ class BearGame extends Phaser.Scene {
                     
                     if (!this.deadTextOverlay)
                         this.deadTextOverlay = this.add.text(360, 360, `${playerObj.id} IS DEAD`, { font: '20px Courier', fill: '#ff0000' }).setOrigin(0).setScale(1);
+                        this.scene.start("EndScreen");
                 } else {
                     playerObj.health = newHealth;
                 }
@@ -787,6 +885,7 @@ class BearGame extends Phaser.Scene {
                     
                     if (!this.deadTextOverlay)
                         this.deadTextOverlay = this.add.text(360, 360, `${playerObj.id} IS DEAD`, { font: '20px Courier', fill: '#ff0000' }).setOrigin(0).setScale(1);
+                        this.scene.start("EndScreen");
                 } else {
                     playerObj.health = newHealth;
                 }
@@ -1076,7 +1175,7 @@ const config = {
     /* Specified viewport size. The size of the game window */
     width: 800,
     height: 450,
-    scene: [Menu, MapSelect, BearGame],
+    scene: [Menu, MapSelect, BearGame, EndScreen],
     physics: {
         default: 'arcade',
         arcade: {
