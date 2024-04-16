@@ -22,6 +22,8 @@ const RESET_PLAYER_MILLIS = 1000;
 const RESET_PLAYER_DELAY_MILLIS = 1000;
 const OUT_OF_BOUNDS_INTERVAL_MILLIS = 500;
 
+const PLAYER_INCLINE_CLIMB_DIST = 1;
+
 class Menu extends Phaser.Scene {
     constructor() {
         super({ key: 'Menu' });
@@ -65,13 +67,21 @@ class Menu extends Phaser.Scene {
         this.clickButton = this.add.image(400, 350, 'playButton')
             .setScale(0.6)
             .setInteractive({useHandCursor: true})
-            .on('pointerdown', () => this.scene.start("MapSelect"));
+            .on('pointerdown', () => {
+
+                this.scene.start("MapSelect")
+                this.scene.stop('Menu');
+            });
 
         // Add settings button
         this.clickButton = this.add.image(625, 365, 'instructionsButton')
         .setScale(0.175)
         .setInteractive({useHandCursor: true})
-        .on('pointerdown', () => this.scene.start("MapSelect"));
+        .on('pointerdown', () => {
+
+            this.scene.start("MapSelect")
+            this.scene.stop("Menu");
+        });
     }
 
     createBackground() {
@@ -132,6 +142,7 @@ class MapSelect extends Phaser.Scene {
             .on('pointerdown', () => {
                 this.registry.set('selectedMapIndex', 1);
                 this.scene.start("playGame")
+                this.scene.stop('MapSelect')
             });
 
 
@@ -141,6 +152,7 @@ class MapSelect extends Phaser.Scene {
             .on('pointerdown', () => {
                 this.registry.set('selectedMapIndex', 2);
                 this.scene.start("playGame")
+                this.scene.stop('MapSelect')
             });
 
 
@@ -151,6 +163,7 @@ class MapSelect extends Phaser.Scene {
                 this.registry.set('selectedMapIndex', 1);
                 this.sound.stopAll();
                 this.scene.start("playGame");
+                this.scene.stop('MapSelect');
             });
 
 
@@ -161,6 +174,7 @@ class MapSelect extends Phaser.Scene {
                 this.registry.set('selectedMapIndex', 2);
                 this.sound.stopAll();
                 this.scene.start("playGame")
+                this.scene.stop('MapSelect');
             });
     }
 
@@ -194,7 +208,10 @@ class EndScreen extends Phaser.Scene {
         this.clickButton = this.add.image(400, 405, 'menuButton')
             .setScale(0.4)
             .setInteractive({useHandCursor: true})
-            .on('pointerdown', () => this.scene.start("Menu"));
+            .on('pointerdown', () => {
+                this.scene.stop('playGame');
+                this.scene.start("Menu")
+            });
     }
 
     createBackground() {
