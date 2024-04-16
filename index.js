@@ -17,7 +17,7 @@ const STAMINA_DIVIDE_MODIFIER = 4;
 const INDICATOR_LINE_WIDTH = 2;
 const INDICATOR_LINE_COLOR = 0xff0000;
 
-const BOBBER_BOMB_EXPLOSION_DMG = 80;
+const BOBBER_BOMB_EXPLOSION_DMG = 20;
 
 const NEXT_PLAYER_KEY = 'P';
 const NEXT_WEAPON_KEY = 'B';
@@ -767,13 +767,6 @@ class BearGame extends Phaser.Scene {
     /* This will reset the player by panning the camera to the current player. When done panning, user interaction will be enabled 
     and other things needed to set the player back to a "normal" state of play. */
     resetPlayerFromProjectile(reset_player_millis, timeout_millis) {
-
-        console.log(`${this.currentPlayerObj}`);
-        console.log(`${this.currentPlayerObj.sprite}`);
-        console.log(`${this.currentPlayerObj.sprite.body}`);
-        if (this.currentPlayerObj.sprite) {
-            return;
-        }
 
         /* We have a wrapper timeout over everything because it may take a second for things to process before we can
         check if players are moving. After a second, the velocities should have been changed from zero and worth 
