@@ -1,5 +1,5 @@
-const WORLD_WIDTH = 1252;
-const WORLD_HEIGHT = 646;
+const WORLD_WIDTH = 1252 * 1.5;
+const WORLD_HEIGHT = 646 * 1.5;
 
 const BAR_WIDTH = 80;
 const BAR_HEIGHT = 10;
@@ -122,6 +122,7 @@ class MapSelect extends Phaser.Scene {
         this.load.image('back4', 'assets/back4.png');
         this.load.image('map1', 'assets/maps/map1.png');
         this.load.image('map2', 'assets/maps/map2.png');
+        this.load.image('map3', 'assets/maps/map3.png');
     }
 
     create() {
@@ -156,11 +157,11 @@ class MapSelect extends Phaser.Scene {
             });
 
 
-        this.clickButton = this.add.image(235, 300, 'map1')
+        this.clickButton = this.add.image(235, 300, 'map3')
             .setScale(0.65)
             .setInteractive({useHandCursor: true})
             .on('pointerdown', () => {
-                this.registry.set('selectedMapIndex', 1);
+                this.registry.set('selectedMapIndex', 3);
                 this.sound.stopAll();
                 this.scene.start("playGame");
                 this.scene.stop('MapSelect');
@@ -270,6 +271,7 @@ class BearGame extends Phaser.Scene {
         // maps
         this.load.image('map1', 'assets/maps/map1.png');
         this.load.image('map2', 'assets/maps/map2.png');
+        this.load.image('map3', 'assets/maps/map3.png');
 
         // player sprites
         this.load.image('bear1', 'assets/bear1.png');
@@ -307,6 +309,9 @@ class BearGame extends Phaser.Scene {
         }
         else if(selectedMapIndex === 2){
             this.loadTerrainMap('map2', 5, 1);
+        }
+        else if(selectedMapIndex === 3){
+            this.loadTerrainMap('map3', 5, 1);
         }
       
         this.createPlayers();
