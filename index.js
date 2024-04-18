@@ -122,7 +122,8 @@ class MapSelect extends Phaser.Scene {
         this.load.image('back4', 'assets/back4.png');
         this.load.image('map1', 'assets/maps/map1.png');
         this.load.image('map2', 'assets/maps/map2.png');
-        this.load.image('map3', 'assets/maps/map3.png');
+        this.load.image('map3', 'assets/maps/map3Draft2.png');
+        this.load.image('map4', 'assets/maps/map4Draft.png');
     }
 
     create() {
@@ -158,7 +159,7 @@ class MapSelect extends Phaser.Scene {
 
 
         this.clickButton = this.add.image(235, 300, 'map3')
-            .setScale(0.65)
+            .setScale(0.45)
             .setInteractive({useHandCursor: true})
             .on('pointerdown', () => {
                 this.registry.set('selectedMapIndex', 3);
@@ -168,11 +169,11 @@ class MapSelect extends Phaser.Scene {
             });
 
 
-        this.clickButton = this.add.image(565, 300, 'map2')
-            .setScale(0.65)
+        this.clickButton = this.add.image(565, 300, 'map4')
+            .setScale(0.45)
             .setInteractive({useHandCursor: true})
             .on('pointerdown', () => {
-                this.registry.set('selectedMapIndex', 2);
+                this.registry.set('selectedMapIndex', 4);
                 this.sound.stopAll();
                 this.scene.start("playGame")
                 this.scene.stop('MapSelect');
@@ -271,7 +272,8 @@ class BearGame extends Phaser.Scene {
         // maps
         this.load.image('map1', 'assets/maps/map1.png');
         this.load.image('map2', 'assets/maps/map2.png');
-        this.load.image('map3', 'assets/maps/map3.png');
+        this.load.image('map3', 'assets/maps/map3Draft2.png');
+        this.load.image('map4', 'assets/maps/map4Draft.png');
 
         // player sprites
         this.load.image('bear1', 'assets/bear1.png');
@@ -312,6 +314,9 @@ class BearGame extends Phaser.Scene {
         }
         else if(selectedMapIndex === 3){
             this.loadTerrainMap('map3', 5, 1);
+        }
+        else if(selectedMapIndex === 4){
+            this.loadTerrainMap('map4', 5, 1);
         }
       
         this.createPlayers();
@@ -432,7 +437,7 @@ class BearGame extends Phaser.Scene {
 
     createBackground() {
         this.add.image(0, 0, 'background')
-        .setScale(1)
+        .setScale(1.5)
         .setOrigin(0);
 
         this.physics.world.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
