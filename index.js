@@ -41,6 +41,7 @@ class Menu extends Phaser.Scene {
         this.load.image('muteButton', 'assets/muteButton.png');
         this.load.image('instructionsButton', 'assets/instructionsButton.png');
         this.load.audio('main-menu-music', 'assets/sounds/main-menu-music.mp3');
+    
     }
 
     create() {
@@ -241,6 +242,7 @@ class BearGame extends Phaser.Scene {
     cancelAttackTextOverlay1;
     cancelAttackTextOverlay2;
     deadTextOverlay;
+    hud;
 
     walkSound;
     walkFallTimeout;
@@ -275,6 +277,15 @@ class BearGame extends Phaser.Scene {
         this.load.audio('background-music', 'assets/sounds/background-music.mp3');
         this.load.audio('jump', 'assets/sounds/jump.mp3');
 
+        // hud buttons
+        this.load.image(`settings`, `assets/settingsButton.png`);
+        this.load.image(`volume` , `assets/volumebutton.png`) ;
+        this.load.image(`mute`, `assets/mutebutton.png`); 
+        
+        // font for text overlays
+        //this.fontsReady = false; testing this next
+       
+
     }
 
     create() {
@@ -291,6 +302,7 @@ class BearGame extends Phaser.Scene {
         else if(selectedMapIndex === 2){
             this.loadTerrainMap('map2', 5, 1);
         }
+        
       
         this.createPlayers();
 
@@ -314,6 +326,24 @@ class BearGame extends Phaser.Scene {
         this.cameras.main.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
         this.cameras.main.startFollow(this.currentPlayerObj.sprite, true);
 
+        //This is where code will go that is associated with the HUD system
+        this.hud = this.add.group();
+        
+        // Weapon text
+        const weaponText = this.add.text(100, 50, `Current weapon: ${this.currentPlayerObj.weaponKey}`, { font: '16px Courier', fill: '#000000' });
+        weaponText.setOrigin(0.5, 0.5);
+        weaponText.setScrollFactor(0);
+        weaponText.x = this.cameras.main.centerX;
+        //weaponText.y = this.cameras.main.centerY+100;
+        this.hud.add(weaponText);
+
+        // Add settings button
+        this.clickButton = this.add.image(30, 30,  'instructionsButton')
+        .setScale(0.1)
+        .setInteractive({useHandCursor: true})
+        .on('pointerdown', () => this.scene.start("MapSelect"));
+        this.clickButton.setScrollFactor(0);
+        
         this.cycleWeaponTextOverlay = this.add.text(300, 300, `Use the \"${NEXT_WEAPON_KEY}\" key to cycle weapons`, { font: '16px Courier', fill: '#000000' }).setOrigin(0).setScale(1);
         this.cyclePlayerTextOverlay = this.add.text(300, 320, `Use the \"${NEXT_PLAYER_KEY}\" key to cycle players`, { font: '16px Courier', fill: '#000000' }).setOrigin(0).setScale(1);
         this.cancelAttackTextOverlay1 = this.add.text(240, 340, `When holding left-click, you can right-click`, { font: '16px Courier', fill: '#000000' }).setOrigin(0).setScale(1);
@@ -466,6 +496,7 @@ class BearGame extends Phaser.Scene {
 
         this.playerObjects.push(playerObj);
     }
+    
 
     /* If possible, this will set the current player to the next player in the list. 
     If there are no players in the list (such as being all killed), this will set
