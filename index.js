@@ -75,13 +75,13 @@ class Menu extends Phaser.Scene {
 
         // Add settings button
         this.clickButton = this.add.image(625, 365, 'instructionsButton')
-        .setScale(0.175)
-        .setInteractive({useHandCursor: true})
-        .on('pointerdown', () => {
+            .setScale(0.175)
+            .setInteractive({useHandCursor: true})
+            .on('pointerdown', () => {
 
-            this.scene.start("MapSelect")
-            this.scene.stop("Menu");
-        });
+                this.scene.start("InstructionsPage")
+                this.scene.stop("Menu");
+            });
     }
 
     createBackground() {
@@ -105,6 +105,41 @@ class Menu extends Phaser.Scene {
     }
 }
 
+class Instructions extends Phaser.Scene {
+
+    constructor(){
+        super("InstructionsPage")
+    }
+
+    preload() {
+        // Load images
+        this.load.image('background', 'assets/background.jpg');
+        this.load.image('instructions', 'assets/player1Win.png');
+        this.load.image('instructionsButton', 'assets/instructionsButton.png');
+    }
+
+    create() {
+
+        this.createBackground();
+
+        this.add.image(400, 200, 'instructions').setScale(.7);
+
+        this.clickButton = this.add.image(625, 365, 'instructionsButton')
+        .setScale(0.175)
+        .setInteractive({useHandCursor: true})
+        .on('pointerdown', () => {
+
+            this.scene.start("Menu")
+            this.scene.stop("Instructions");
+        });
+    }
+
+    createBackground() {
+        this.add.image(-200, -190, 'background')
+            .setScale(1)
+            .setOrigin(0);
+    }
+}
 
 // Class that contains the map selector scene
 class MapSelect extends Phaser.Scene {
@@ -1202,7 +1237,7 @@ const config = {
     /* Specified viewport size. The size of the game window */
     width: 800,
     height: 450,
-    scene: [Menu, MapSelect, BearGame, EndScreen],
+    scene: [Menu, Instructions, MapSelect, BearGame, EndScreen],
     physics: {
         default: 'arcade',
         arcade: {
