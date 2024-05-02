@@ -1,13 +1,18 @@
-const WORLD_WIDTH = 1252;
-const WORLD_HEIGHT = 646;
+const WORLD_WIDTH = 1252 * 1.5;
+const WORLD_HEIGHT = 646 * 1.5;
 
 const BAR_WIDTH = 80;
 const BAR_HEIGHT = 10;
-const BAR_DIST_ABOVE_HEAD = 60;
+const BAR_HEALTH_DIST_ABOVE_HEAD = 70;
+const BAR_STAMINA_DIST_ABOVE_HEAD = 55;
 const BAR_MAX_HEALTH = BAR_WIDTH;
-const BAR_FILL_COLOR = 0xe74c3c;
+const BAR_HEALTH_FILL_COLOR = 0xe74c3c;
+const BAR_STAMINA_FILL_COLOR = 0x308c3f;
 const BAR_LINE_COLOR = 0x000000;
 const BAR_LINE_WIDTH = 2;
+const BAR_PLAYER_INDICATOR_DIST_ABOVE_HEAD = 90;
+
+const STAMINA_DIVIDE_MODIFIER = 4;
 
 const INDICATOR_LINE_WIDTH = 2;
 const INDICATOR_LINE_COLOR = 0xff0000;
@@ -17,11 +22,21 @@ const BOBBER_BOMB_EXPLOSION_DMG = 20;
 const NEXT_PLAYER_KEY = 'P';
 const NEXT_WEAPON_KEY = 'B';
 const CANCEL_ATTACK_KEY = 'ESC';
+const BEAR_HANDS_KEY = 'ONE';
+const SPEAR_SELECT_KEY=  'TWO';
+const GRENADE_SELECT_KEY =  'THREE';
+const AK_47_SELECT_KEY = 'FOUR';
+const FISH_LAUNCHER_SELECT_KEY = 'FIVE';
 
 const RESET_PLAYER_MILLIS = 1000;
 const RESET_PLAYER_DELAY_MILLIS = 1000;
 const OUT_OF_BOUNDS_INTERVAL_MILLIS = 500;
 
+const PLAYER_INCLINE_CLIMB_DIST = 1;
+
+const PLAYER_STAMINA = 80;
+
+// Class that contains the main Menu scene
 class Menu extends Phaser.Scene {
     constructor() {
         super({ key: 'Menu' });
@@ -30,6 +45,12 @@ class Menu extends Phaser.Scene {
         this.volumeButton;
         this.muteButton;
         this.isMuted = false;
+    }
+
+    init(data) {
+        // data is passed to this scene from map creation
+        this.isMuted = data.isMuted;
+        this.isAlreadyPlaying = data.isAlreadyPlaying;
     }
 
     preload() {
@@ -41,13 +62,20 @@ class Menu extends Phaser.Scene {
         this.load.image('muteButton', 'assets/muteButton.png');
         this.load.image('instructionsButton', 'assets/instructionsButton.png');
         this.load.audio('main-menu-music', 'assets/sounds/main-menu-music.mp3');
+    
     }
 
     create() {
         this.createBackground();
-
+        if (!this.isAlreadyPlaying) {
+            this.isAlreadyPlaying = false;
+        }
+        
         // sounds
-        this.sound.play('main-menu-music', {loop: true});
+        if (!this.isMuted && !this.isAlreadyPlaying) {
+            this.sound.play('main-menu-music', {loop: true});
+            this.isAlreadyPlaying = true;
+        }
         
         // Add bear title image
         this.add.image(400, 150, 'bearTitle');
@@ -65,13 +93,19 @@ class Menu extends Phaser.Scene {
         this.clickButton = this.add.image(400, 350, 'playButton')
             .setScale(0.6)
             .setInteractive({useHandCursor: true})
-            .on('pointerdown', () => this.scene.start("MapSelect"));
+            .on('pointerdown', () => {
+                this.scene.start("MapSelect", {isMuted: this.isMuted});
+                this.scene.stop("Menu", {isMuted: this.isMuted});
+            });
 
         // Add settings button
         this.clickButton = this.add.image(625, 365, 'instructionsButton')
         .setScale(0.175)
         .setInteractive({useHandCursor: true})
-        .on('pointerdown', () => this.scene.start("MapSelect"));
+        .on('pointerdown', () => {
+            this.scene.start("InstructionsPage", {isMuted: this.isMuted, isAlreadyPlaying: this.isAlreadyPlaying});
+            this.scene.stop("Menu", {isMuted: this.isMuted});
+        });
     }
 
     createBackground() {
@@ -86,12 +120,55 @@ class Menu extends Phaser.Scene {
             this.volumeButton.visible = true;
             this.muteButton.visible = false;
             this.isMuted = false;
+            this.sound.play('main-menu-music', {loop: true});
         } else {
             // Mute the game
             this.volumeButton.visible = false;
             this.muteButton.visible = true;
             this.isMuted = true;
+            this.sound.stopAll()
         }
+    }
+}
+
+class Instructions extends Phaser.Scene {
+
+    constructor(){
+        super("InstructionsPage")
+    }
+
+    init(data) {
+        // data is passed to this scene from map creation
+        this.isMuted = data.isMuted;
+        this.isAlreadyPlaying = data.isAlreadyPlaying;
+    }
+
+    preload() {
+        // Load images
+        this.load.image('background', 'assets/background.jpg');
+        this.load.image('instructions', 'assets/instructions.png');
+        this.load.image('instructionsButton', 'assets/instructionsButton.png');
+    }
+
+    create() {
+
+        this.createBackground();
+
+        this.add.image(400, 200, 'instructions').setScale(.7);
+
+        this.clickButton = this.add.image(625, 365, 'instructionsButton')
+        .setScale(0.175)
+        .setInteractive({useHandCursor: true})
+        .on('pointerdown', () => {
+            this.scene.start("Menu", {isMuted: this.isMuted, isAlreadyPlaying: this.isAlreadyPlaying})
+            this.scene.stop("Instructions");
+        });
+    }
+
+    createBackground() {
+        this.add.image(-200, -190, 'background')
+            .setScale(1)
+            .setOrigin(0);
     }
 }
 
@@ -103,6 +180,11 @@ class MapSelect extends Phaser.Scene {
         super("MapSelect");
     }
 
+    init(data) {
+        // data is passed to this scene from map creation
+        this.isMuted = data.isMuted;
+    }
+
     preload()
     {
         this.load.image('background', 'assets/background.jpg');
@@ -112,6 +194,8 @@ class MapSelect extends Phaser.Scene {
         this.load.image('back4', 'assets/back4.png');
         this.load.image('map1', 'assets/maps/map1.png');
         this.load.image('map2', 'assets/maps/map2.png');
+        this.load.image('map3', 'assets/maps/map3Draft2.png');
+        this.load.image('map4', 'assets/maps/map4Draft.png');
     }
 
     create() {
@@ -126,42 +210,46 @@ class MapSelect extends Phaser.Scene {
 
         /*Each button corresponds to a map. If you click on a map, an integer is saved to
          the "registry" which will be used later. The button also moves user to the next scene.*/
-        this.clickButton = this.add.image(235, 85, 'map1')
-            .setScale(0.65)
-            .setInteractive({useHandCursor: true})
-            .on('pointerdown', () => {
-                this.registry.set('selectedMapIndex', 1);
-                this.scene.start("playGame")
-            });
+         this.clickButton = this.add.image(235, 85, 'map1')
+         .setScale(0.65)
+         .setInteractive({useHandCursor: true})
+         .on('pointerdown', () => {
+             this.registry.set('selectedMapIndex', 1);
+             this.sound.stopAll();
+             this.scene.start("playGame");
+         });
 
 
-        this.clickButton = this.add.image(565, 85, 'map2')
-            .setScale(0.65)
-            .setInteractive({useHandCursor: true})
-            .on('pointerdown', () => {
-                this.registry.set('selectedMapIndex', 2);
-                this.scene.start("playGame")
-            });
+     this.clickButton = this.add.image(565, 85, 'map2')
+         .setScale(0.65)
+         .setInteractive({useHandCursor: true})
+         .on('pointerdown', () => {
+             this.registry.set('selectedMapIndex', 2);
+             this.scene.start("playGame", {isMuted: this.isMuted})
+             this.scene.stop('MapSelect')
+         });
 
 
-        this.clickButton = this.add.image(235, 300, 'map1')
-            .setScale(0.65)
-            .setInteractive({useHandCursor: true})
-            .on('pointerdown', () => {
-                this.registry.set('selectedMapIndex', 1);
-                this.sound.stopAll();
-                this.scene.start("playGame");
-            });
+     this.clickButton = this.add.image(235, 300, 'map3')
+         .setScale(0.45)
+         .setInteractive({useHandCursor: true})
+         .on('pointerdown', () => {
+             this.registry.set('selectedMapIndex', 3);
+             this.sound.stopAll();
+             this.scene.start("playGame", {isMuted: this.isMuted});
+             this.scene.stop('MapSelect');
+         });
 
 
-        this.clickButton = this.add.image(565, 300, 'map2')
-            .setScale(0.65)
-            .setInteractive({useHandCursor: true})
-            .on('pointerdown', () => {
-                this.registry.set('selectedMapIndex', 2);
-                this.sound.stopAll();
-                this.scene.start("playGame")
-            });
+     this.clickButton = this.add.image(565, 300, 'map4')
+         .setScale(0.45)
+         .setInteractive({useHandCursor: true})
+         .on('pointerdown', () => {
+             this.registry.set('selectedMapIndex', 4);
+             this.sound.stopAll();
+             this.scene.start("playGame", {isMuted: this.isMuted})
+             this.scene.stop('MapSelect');
+         });
     }
 
     createBackground() {
@@ -194,7 +282,10 @@ class EndScreen extends Phaser.Scene {
         this.clickButton = this.add.image(400, 405, 'menuButton')
             .setScale(0.4)
             .setInteractive({useHandCursor: true})
-            .on('pointerdown', () => this.scene.start("Menu"));
+            .on('pointerdown', () => {
+                this.scene.stop('playGame');
+                this.scene.start("Menu")
+            });
     }
 
     createBackground() {
@@ -207,15 +298,12 @@ class EndScreen extends Phaser.Scene {
 /* Use a class to contain our particular scene for organization sake */
 class BearGame extends Phaser.Scene {
 
-    constructor(){
-        super("playGame");
-    }
-
     platforms;
 
     players;
     currentPlayerIndex;
     currentPlayerObj;
+    playerIndicatorGraphic;
 
     /* This is used to disable user interaction with the game. Such as 
     when a projectile is in-flight and we want to wait for it to land */
@@ -224,7 +312,6 @@ class BearGame extends Phaser.Scene {
     to play an animation that moves the weaponSprite */
     stopWeaponMove;
 
-    nextPlayerKey;
     swapWeaponKey;
 
     movementKeys;
@@ -236,15 +323,22 @@ class BearGame extends Phaser.Scene {
     intervalCheck;
     isCancelThrow;
 
-    cycleWeaponTextOverlay;
-    cyclePlayerTextOverlay;
-    cancelAttackTextOverlay1;
-    cancelAttackTextOverlay2;
-    deadTextOverlay;
+    hud;
 
     walkSound;
     walkFallTimeout;
     isFalling;
+    isMuted;
+    weaponText;
+
+    constructor(){
+        super("playGame");
+    }
+
+    init(data) {
+        // data is passed to this scene from map creation
+        this.isMuted = data.isMuted;
+    }
     
     preload() {
         // backgrounds
@@ -253,6 +347,8 @@ class BearGame extends Phaser.Scene {
         // maps
         this.load.image('map1', 'assets/maps/map1.png');
         this.load.image('map2', 'assets/maps/map2.png');
+        this.load.image('map3', 'assets/maps/map3Draft2.png');
+        this.load.image('map4', 'assets/maps/map4Draft.png');
 
         // player sprites
         this.load.image('bear1', 'assets/bear1.png');
@@ -275,6 +371,18 @@ class BearGame extends Phaser.Scene {
         this.load.audio('background-music', 'assets/sounds/background-music.mp3');
         this.load.audio('jump', 'assets/sounds/jump.mp3');
 
+        // hud buttons
+        this.load.image(`settings`, `assets/settingsButton.png`);
+        this.load.image(`volume` , `assets/volumebutton.png`) ;
+        this.load.image(`mute`, `assets/mutebutton.png`); 
+        this.load.image(`spear`, `assets/spear.png`);
+        this.load.image(`grenade`, `assets/bobber-bomb.png`);
+        this.load.image(`AK47`,`assets/ak-47.png`);
+        
+        // font for text overlays
+        //this.fontsReady = false; testing this next
+       
+
     }
 
     create() {
@@ -291,37 +399,58 @@ class BearGame extends Phaser.Scene {
         else if(selectedMapIndex === 2){
             this.loadTerrainMap('map2', 5, 1);
         }
+        else if(selectedMapIndex === 3){
+            this.loadTerrainMap('map3', 5, 1);
+        }
+        else if(selectedMapIndex === 4){
+            this.loadTerrainMap('map4', 5, 1);
+        }
       
         this.createPlayers();
+        this.playerIndicatorGraphic = this.makePlayerIndicatorGraphic(this.currentPlayerObj.sprite.x, this.currentPlayerObj.sprite.y, BAR_HEALTH_FILL_COLOR, BAR_LINE_COLOR);
 
         this.createLineResources();
         this.createMouseListeners();
 
         this.swapWeaponKey = this.input.keyboard.addKey(NEXT_WEAPON_KEY);
-        this.nextPlayerKey = this.input.keyboard.addKey(NEXT_PLAYER_KEY);
+        this.spearKey = this.input.keyboard.addKey(SPEAR_SELECT_KEY);
+        this.grenadeKey = this.input.keyboard.addKey(GRENADE_SELECT_KEY);
+        this.ak47Key = this.input.keyboard.addKey(AK_47_SELECT_KEY);
+        this.fishGunKey = this.input.keyboard.addKey(FISH_LAUNCHER_SELECT_KEY);
+        this.bearHandsKey = this.input.keyboard.addKey(BEAR_HANDS_KEY);
         this.movementKeys = this.input.keyboard.addKeys('W,UP,D,RIGHT,A,LEFT');
         this.cancelAttackKey = this.input.keyboard.addKey(CANCEL_ATTACK_KEY);
 
         // sounds
-        this.walkSound = this.sound.add('footsteps');
-        this.jumpSound = this.sound.add('jump');
-        this.sound.play('background-music', {loop: true});
+        if (!this.isMuted) {
+            this.walkSound = this.sound.add('footsteps');
+            this.jumpSound = this.sound.add('jump');
+            this.sound.play('background-music', {loop: true});
+        }
+        
 
         this.disableUserInteraction = false;
         this.stopWeaponMove = false;
         this.isCancelAttack = false;
+        this.canPlayerMove = true;
         
         this.cameras.main.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
         this.cameras.main.startFollow(this.currentPlayerObj.sprite, true);
 
-        this.cycleWeaponTextOverlay = this.add.text(300, 300, `Use the \"${NEXT_WEAPON_KEY}\" key to cycle weapons`, { font: '16px Courier', fill: '#000000' }).setOrigin(0).setScale(1);
-        this.cyclePlayerTextOverlay = this.add.text(300, 320, `Use the \"${NEXT_PLAYER_KEY}\" key to cycle players`, { font: '16px Courier', fill: '#000000' }).setOrigin(0).setScale(1);
-        this.cancelAttackTextOverlay1 = this.add.text(240, 340, `When holding left-click, you can right-click`, { font: '16px Courier', fill: '#000000' }).setOrigin(0).setScale(1);
-        this.cancelAttackTextOverlay2 = this.add.text(240, 360, `(or press the ESC key) to cancel your attack`, { font: '16px Courier', fill: '#000000' }).setOrigin(0).setScale(1);
+        //This is where code will go that is associated with the HUD system
+        this.hud = this.add.group();
+        
+        // Weapon text
+        this.weaponText = this.add.text(100, 50, `Current weapon: ${this.currentPlayerObj.weaponKey ? this.currentPlayerObj.weaponKey : "Bear Hands"}`, { font: '16px Courier', fill: '#000000' });
+        this.weaponText.setOrigin(0.5, 0.5);
+        this.weaponText.setScrollFactor(0);
+        this.weaponText.x = this.cameras.main.centerX;
+        this.hud.add(this.weaponText);
     }
 
     update() {
         // console.log(`FPS: ${Math.round(game.loop.actualFps)}`);
+
         this.checkKeyboardInput();
         this.checkMouseInput();
 
@@ -336,11 +465,19 @@ class BearGame extends Phaser.Scene {
             }
         });
 
-        // move health bars to players
+        // move bars to players
         this.playerObjects.forEach(obj => {
             obj.healthBar.x = obj.sprite.x - BAR_WIDTH/2;
-            obj.healthBar.y = obj.sprite.y - BAR_DIST_ABOVE_HEAD;
+            obj.healthBar.y = obj.sprite.y - BAR_HEALTH_DIST_ABOVE_HEAD;
+            obj.staminaBar.x = obj.sprite.x - BAR_WIDTH/2;
+            obj.staminaBar.y = obj.sprite.y - BAR_STAMINA_DIST_ABOVE_HEAD;
         });
+
+        // move the player indicator graphic to be above the current player's head
+        this.playerIndicatorGraphic.x = this.currentPlayerObj.sprite.x - 10;
+        this.playerIndicatorGraphic.y = this.currentPlayerObj.sprite.y - BAR_PLAYER_INDICATOR_DIST_ABOVE_HEAD;
+
+        this.updatePlayerStamina();
     }
 
     
@@ -410,7 +547,7 @@ class BearGame extends Phaser.Scene {
 
     createBackground() {
         this.add.image(0, 0, 'background')
-        .setScale(1)
+        .setScale(1.5)
         .setOrigin(0);
 
         this.physics.world.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
@@ -430,6 +567,8 @@ class BearGame extends Phaser.Scene {
         // set current player to be the first in the list
         this.currentPlayerIndex = 0;
         this.currentPlayerObj = this.playerObjects[this.currentPlayerIndex];
+
+        this.lastPlayerPosition = {x: 450, y: 420};
     }
 
     // Key is the texture key. ID is the player "name"
@@ -444,8 +583,10 @@ class BearGame extends Phaser.Scene {
         sprite.setDrag(100);
 
         // Center health bar and set it to be a little above the player's head
-        const healthBar = this.makeBar(sprite.x - BAR_WIDTH/2, sprite.y - BAR_DIST_ABOVE_HEAD, BAR_FILL_COLOR, BAR_LINE_COLOR);
-        this.setBarValue(healthBar, BAR_MAX_HEALTH);
+        const healthBar = this.makeBar(sprite.x - BAR_WIDTH/2, sprite.y - BAR_HEALTH_DIST_ABOVE_HEAD, BAR_HEALTH_FILL_COLOR, BAR_LINE_COLOR);
+        this.setBarValue(healthBar, BAR_MAX_HEALTH, BAR_HEALTH_FILL_COLOR);
+        const staminaBar = this.makeBar(sprite.x - BAR_WIDTH/2, sprite.y - BAR_STAMINA_DIST_ABOVE_HEAD, BAR_STAMINA_FILL_COLOR, BAR_LINE_COLOR);
+        this.setBarValue(staminaBar, PLAYER_STAMINA, BAR_STAMINA_FILL_COLOR);
 
         // Player object
         let playerObj = {
@@ -453,6 +594,8 @@ class BearGame extends Phaser.Scene {
             sprite: sprite,
             health: BAR_MAX_HEALTH,
             healthBar: healthBar,
+            stamina: PLAYER_STAMINA,
+            staminaBar: staminaBar,
             // used to initially position weapons and their facing direction relative to the player
             isFacingLeft: false,
             // we use this to stop movement when the player is aiming
@@ -466,6 +609,7 @@ class BearGame extends Phaser.Scene {
 
         this.playerObjects.push(playerObj);
     }
+    
 
     /* If possible, this will set the current player to the next player in the list. 
     If there are no players in the list (such as being all killed), this will set
@@ -480,12 +624,36 @@ class BearGame extends Phaser.Scene {
             this.currentPlayerIndex = nextIndex;
     
             this.currentPlayerObj = this.playerObjects[nextIndex];
-            this.cameras.main.startFollow(this.currentPlayerObj.sprite, true);
+            this.lastPlayerPosition = {x: this.currentPlayerObj.sprite.x, y: this.currentPlayerObj.sprite.y};
+            this.currentPlayerObj.stamina = PLAYER_STAMINA;
+            this.canPlayerMove = true;
+            this.updateHUDWeaponText();
         } else {
             this.cameras.main.stopFollow();
             this.currentPlayerObj = null;
         }
         
+    }
+
+    updateHUDWeaponText() {
+        let text;
+        switch (this.currentPlayerObj.weaponKey) {
+            case 'bobber-bomb':
+                text = "Bobber Bomb";
+                break;
+            case 'fish-gun':
+                text = "Fish Gun";
+                break;
+            case 'ak-47':
+                text = "Ak-47";
+                break;
+            case 'spear':
+                text = "Spear";
+                break;
+            default:
+                text = "Bear Hands";
+        }
+        this.weaponText.setText(`Current weapon: ${text}`);
     }
 
     killPlayer(playerObj) {
@@ -508,13 +676,36 @@ class BearGame extends Phaser.Scene {
         this.playerObjects.splice(idx, 1);
     }
 
+
+    updatePlayerStamina() {
+        var distance_walked_x = Math.abs(this.currentPlayerObj.sprite.x - this.lastPlayerPosition.x);
+        // divide by value because i haven't gotten around to having the bars be percentages of values 
+        // instead
+        distance_walked_x /= STAMINA_DIVIDE_MODIFIER;
+
+        if (this.currentPlayerObj.stamina > 0) {
+            this.currentPlayerObj.stamina -= distance_walked_x;
+            this.setBarValue(this.currentPlayerObj.staminaBar, this.currentPlayerObj.stamina, BAR_STAMINA_FILL_COLOR);
+        } else {
+            this.canPlayerMove = false;
+        }
+        
+        // we only want the current player's stamina bar to be visible
+        this.playerObjects.forEach(obj => {
+            obj.staminaBar.setVisible(obj === this.currentPlayerObj);
+        });
+
+
+        this.lastPlayerPosition = {x: this.currentPlayerObj.sprite.x, y: this.currentPlayerObj.sprite.y};
+    }
+
     makeBar(x, y, fillColor, outlineColor) {
         let bar = this.add.graphics();
 
         bar.fillStyle(fillColor);
         bar.fillRect(0, 0, BAR_WIDTH, BAR_HEIGHT);
 
-        bar.lineStyle(1, outlineColor);
+        bar.lineStyle(BAR_LINE_WIDTH, outlineColor);
         bar.strokeRect(0, 0, BAR_WIDTH, BAR_HEIGHT);
         
         bar.x = x;
@@ -523,14 +714,26 @@ class BearGame extends Phaser.Scene {
         return bar;
     }
 
-    setBarValue(bar, value) {
+    setBarValue(bar, value, fillColor) {
         bar.clear();
 
-        bar.fillStyle(BAR_FILL_COLOR);
+        bar.fillStyle(fillColor);
         bar.fillRect(0, 0, value, BAR_HEIGHT);
 
         bar.lineStyle(BAR_LINE_WIDTH, BAR_LINE_COLOR);
         bar.strokeRect(0, 0, BAR_WIDTH, BAR_HEIGHT);
+    }
+
+    makePlayerIndicatorGraphic(x, y, fillColor, outlineColor) {
+        let indicator = this.add.graphics();
+
+        indicator.fillStyle(0x00ff00);
+        indicator.fillTriangle(0, 0, 20, 0, 10, 15)
+
+        indicator.lineStyle(2, outlineColor);
+        indicator.strokeTriangle(0, 0, 20, 0, 10, 15);
+
+        return indicator;
     }
 
     createLineResources() {
@@ -593,8 +796,10 @@ class BearGame extends Phaser.Scene {
         this.cameras.main.startFollow(projectile, true);
 
         // sounds
-        this.sound.play('grenade-pull-pin');
-
+        if (!this.isMuted) {
+            this.sound.play('grenade-pull-pin');
+        }
+        
         /* Will disable gravity entirely for the projectiles. More for bullet-style projectiles */
         // projectile.body.setAllowGravity(false);
         
@@ -625,7 +830,9 @@ class BearGame extends Phaser.Scene {
         this.cameras.main.startFollow(projectile, true);
 
         // sounds
-        this.sound.play('fish-gun-shoot');
+        if (!this.isMuted) {
+            this.sound.play('fish-gun-shoot');
+        }
 
         this.physics.add.collider(projectile, this.platforms, this.terrainExplosionCallback, this.terrainProcessCallback, this);
         this.playerObjects.forEach(obj => {
@@ -685,8 +892,10 @@ class BearGame extends Phaser.Scene {
         this.cameras.main.startFollow(projectile, true);
 
         // sounds
-        this.sound.play('gun-shoot');
-
+        if (!this.isMuted) {
+            this.sound.play('gun-shoot');
+        }
+        
         // Gives a bullet-style behavior by ignoring gravity.
         projectile.body.setAllowGravity(false);
         
@@ -733,7 +942,10 @@ class BearGame extends Phaser.Scene {
         }
 
         // sounds
-        this.sound.play('spear-swing');
+        if (!this.isMuted) {
+            this.sound.play('spear-swing');
+        }
+        
 
         // This block produces a quick spear jab forward animation
         const animation_duration_millis = 200;
@@ -800,25 +1012,56 @@ class BearGame extends Phaser.Scene {
         object2.destroy();
     }
 
+
+
     /* This will reset the player by panning the camera to the current player. When done panning, user interaction will be enabled 
     and other things needed to set the player back to a "normal" state of play. */
     resetPlayerFromProjectile(reset_player_millis, timeout_millis) {
+
+        /* We have a wrapper timeout over everything because it may take a second for things to process before we can
+        check if players are moving. After a second, the velocities should have been changed from zero and worth 
+        checking */
         setTimeout(() => {
-            this.cameras.main.stopFollow();
-            if (reset_player_millis > 0)
-                this.cameras.main.pan(this.currentPlayerObj.sprite.x, this.currentPlayerObj.sprite.y, reset_player_millis);
-            setTimeout(() => {
-                if (this.currentPlayerObj.weaponSprite) {
-                    this.currentPlayerObj.weaponSprite.rotation = 0;
-                    /* Specifically, this is for the bobber-bomb because we setVisible to false to give
-                    the illusion that we threw it */
-                    this.currentPlayerObj.weaponSprite.setVisible(true);
+            var check = function(){
+                var isAnyPlayerMoving = true;
+    
+                this.playerObjects.forEach(obj => {
+                    if (obj.sprite.body.velocity.x !== 0 || obj.sprite.body.velocity.y !== 0) {
+                        isAnyPlayerMoving = false;
+                    }
+                });
+    
+                // if no players are moving
+                if(isAnyPlayerMoving){
+    
+                    setTimeout(() => {
+                        this.cameras.main.stopFollow();
+                        this.nextPlayer();
+                        if (reset_player_millis > 0)
+                            this.cameras.main.pan(this.currentPlayerObj.sprite.x, this.currentPlayerObj.sprite.y, reset_player_millis);
+                        setTimeout(() => {
+                            if (this.currentPlayerObj.weaponSprite) {
+                                this.currentPlayerObj.weaponSprite.rotation = 0;
+                                /* Specifically, this is for the bobber-bomb because we setVisible to false to give
+                                the illusion that we threw it */
+                                this.currentPlayerObj.weaponSprite.setVisible(true);
+                            }
+                            
+                            this.disableUserInteraction = false;
+                            this.cameras.main.startFollow(this.currentPlayerObj.sprite, true);
+                        }, reset_player_millis);
+                    }, timeout_millis);
+    
+                } else {
+                    setTimeout(() => {check.call(this)}, 500); // check again in half a second
                 }
+            }
                 
-                this.disableUserInteraction = false;
-                this.cameras.main.startFollow(this.currentPlayerObj.sprite, true);
-            }, reset_player_millis);
-        }, timeout_millis);
+            check.call(this);
+        }, 1000);
+        
+
+        
         
     }
 
@@ -828,22 +1071,21 @@ class BearGame extends Phaser.Scene {
 
 
         // sounds
-        this.sound.play('bullet-hit');
+        if (!this.isMuted) {
+            this.sound.play('bullet-hit');
+        }
 
         this.playerObjects.forEach(playerObj => {
             if (playerObj.sprite === object2) {
                 const newHealth = playerObj.health - BOBBER_BOMB_EXPLOSION_DMG;
                 if (newHealth <= 0) {
                     this.killPlayer(playerObj);
-                    
-                    if (!this.deadTextOverlay)
-                        this.deadTextOverlay = this.add.text(360, 360, `${playerObj.id} IS DEAD`, { font: '20px Courier', fill: '#ff0000' }).setOrigin(0).setScale(1);
-                        this.scene.start("EndScreen");
+                    // this.scene.start("EndScreen");
                 } else {
                     playerObj.health = newHealth;
                 }
         
-                this.setBarValue(playerObj.healthBar, playerObj.health);
+                this.setBarValue(playerObj.healthBar, playerObj.health, BAR_HEALTH_FILL_COLOR);
             }
         });
 
@@ -882,10 +1124,7 @@ class BearGame extends Phaser.Scene {
                 const newHealth = playerObj.health - BOBBER_BOMB_EXPLOSION_DMG;
                 if (newHealth <= 0) {
                     this.killPlayer(playerObj);
-                    
-                    if (!this.deadTextOverlay)
-                        this.deadTextOverlay = this.add.text(360, 360, `${playerObj.id} IS DEAD`, { font: '20px Courier', fill: '#ff0000' }).setOrigin(0).setScale(1);
-                        this.scene.start("EndScreen");
+                        // this.scene.start("EndScreen");
                 } else {
                     playerObj.health = newHealth;
                 }
@@ -904,7 +1143,7 @@ class BearGame extends Phaser.Scene {
                     object2.body.velocity.x += Math.cos(angle) * 250;
                 }
         
-                this.setBarValue(playerObj.healthBar, playerObj.health);
+                this.setBarValue(playerObj.healthBar, playerObj.health, BAR_HEALTH_FILL_COLOR);
                 object1.damagePlayerList[i][1] = false;
 
                 
@@ -928,7 +1167,9 @@ class BearGame extends Phaser.Scene {
         });
 
         // sounds
-        this.sound.play('bobber-bomb-explode');
+        if (!this.isMuted) {
+            this.sound.play('bobber-bomb-explode');
+        }
 
         // destroy bobber-bomb
         object1.destroy();
@@ -964,63 +1205,149 @@ class BearGame extends Phaser.Scene {
             // this.currentPlayerObj would only be null if all the players are killed?
             if (this.currentPlayerObj && this.playerObjects.length) {
                 if (this.movementKeys.LEFT.isDown || this.movementKeys.A.isDown) {
-                    this.currentPlayerObj.sprite.setVelocityX(-160);
                     this.currentPlayerObj.sprite.flipX = true;
                     this.currentPlayerObj.isFacingLeft = true;
-
-
-                    if (!this.walkSound.isPlaying) {
-                        this.walkSound.play();
-                    }
-
-                    // If blocked, player does a little hop to try and traverse the distance
-                    if (this.currentPlayerObj.sprite.body.blocked.left) {
-                        this.currentPlayerObj.sprite.y -= PLAYER_INCLINE_CLIMB_DIST;
-                    }
-        
                     if (this.currentPlayerObj.weaponKey == 'fish-gun' 
-                    || this.currentPlayerObj.weaponKey == 'ak-47'
-                    || this.currentPlayerObj.weaponKey == 'spear')
-                        this.currentPlayerObj.weaponSprite.flipX = true;
+                        || this.currentPlayerObj.weaponKey == 'ak-47'
+                        || this.currentPlayerObj.weaponKey == 'spear')
+                            this.currentPlayerObj.weaponSprite.flipX = true;
+
+
+                    if (this.canPlayerMove) {
+                        this.currentPlayerObj.sprite.setVelocityX(-160);
+                        if (this.walkSound && !this.walkSound.isPlaying) {
+                            this.walkSound.play();
+                        }
+
+                        // If blocked, player does a little hop to try and traverse the distance
+                        if (this.currentPlayerObj.sprite.body.blocked.left) {
+                            this.currentPlayerObj.sprite.y -= PLAYER_INCLINE_CLIMB_DIST;
+                        }
+                    } else {
+                        this.currentPlayerObj.sprite.setVelocityX(0);
+                        if (this.walkSound) {
+                            this.walkSound.pause()
+                        }
+                    }  
                     
                 } else if (this.movementKeys.RIGHT.isDown || this.movementKeys.D.isDown) {
-                    this.currentPlayerObj.sprite.setVelocityX(160);
                     this.currentPlayerObj.sprite.flipX = false;
                     this.currentPlayerObj.isFacingLeft = false;
-
-
-                    if (!this.walkSound.isPlaying) {
-                        this.walkSound.play();
-                    }
-                    
-                    
-                    // If blocked, player does a little hop to try and traverse the vertical distance
-                    if (this.currentPlayerObj.sprite.body.blocked.right) {
-                        this.currentPlayerObj.sprite.y -= PLAYER_INCLINE_CLIMB_DIST;
-                    }
-        
                     if (this.currentPlayerObj.weaponKey == 'fish-gun' 
-                    || this.currentPlayerObj.weaponKey == 'ak-47'
-                    || this.currentPlayerObj.weaponKey == 'spear')
-                        this.currentPlayerObj.weaponSprite.flipX = false;
+                        || this.currentPlayerObj.weaponKey == 'ak-47'
+                        || this.currentPlayerObj.weaponKey == 'spear')
+                            this.currentPlayerObj.weaponSprite.flipX = false;
+
+
+                    if (this.canPlayerMove) {
+                        this.currentPlayerObj.sprite.setVelocityX(160);
+                        if (this.walkSound && !this.walkSound.isPlaying) {
+                            this.walkSound.play();
+                        }
+                        
+                        // If blocked, player does a little hop to try and traverse the vertical distance
+                        if (this.currentPlayerObj.sprite.body.blocked.right) {
+                            this.currentPlayerObj.sprite.y -= PLAYER_INCLINE_CLIMB_DIST;
+                        }
+                    } else {
+                        this.currentPlayerObj.sprite.setVelocityX(0);
+                        if (this.walkSound) {
+                            this.walkSound.pause();
+                        }
+                    }
                 } else {
                     this.currentPlayerObj.sprite.setVelocityX(0);
-                    this.walkSound.pause();
+                    if (this.walkSound) {
+                        this.walkSound.pause();
+                    }
                 }
 
                 // if the player is touching the ground, they can jump again so we stop the sound.
-                if (this.currentPlayerObj.sprite.body.touching.down) {
+                if (this.jumpSound && this.currentPlayerObj.sprite.body.touching.down) {
                     this.jumpSound.stop();
                 }
 
                 // This block controls jumping
                 if ((this.movementKeys.UP.isDown || this.movementKeys.W.isDown) && this.currentPlayerObj.sprite.body.touching.down) {
                     this.currentPlayerObj.sprite.setVelocityY(-250);
-                    if (!this.jumpSound.isPlaying) {
+                    if (this.jumpSound && !this.jumpSound.isPlaying) {
                         this.jumpSound.play();
                     }
                 }
-                
+
+                if (Phaser.Input.Keyboard.JustDown(this.spearKey)) {
+                    if (this.currentPlayerObj.weaponSprite)
+                        this.currentPlayerObj.weaponSprite.destroy();
+
+                    this.currentPlayerObj.weaponIndex = 4;
+                    const nextWeaponKey = this.currentPlayerObj.weaponList[4];
+                    this.currentPlayerObj.weaponSprite = this.physics.add.sprite(this.currentPlayerObj.sprite.x, this.currentPlayerObj.sprite.y, nextWeaponKey);
+                    this.currentPlayerObj.weaponKey = nextWeaponKey;
+                    this.currentPlayerObj.weaponSprite.setScale(0.25);
+                    if (this.currentPlayerObj.isFacingLeft) {
+                        this.currentPlayerObj.weaponSprite.flipX = true;
+                    }
+                    this.currentPlayerObj.weaponSprite.setImmovable(true);
+                    this.currentPlayerObj.weaponSprite.body.setAllowGravity(false);
+                    this.updateHUDWeaponText();
+                }
+                if (Phaser.Input.Keyboard.JustDown(this.grenadeKey)) {
+                    if (this.currentPlayerObj.weaponSprite)
+                        this.currentPlayerObj.weaponSprite.destroy();
+
+                    this.currentPlayerObj.weaponIndex = 1;
+                    const nextWeaponKey = this.currentPlayerObj.weaponList[1];
+                    this.currentPlayerObj.weaponSprite = this.physics.add.sprite(this.currentPlayerObj.sprite.x, this.currentPlayerObj.sprite.y, nextWeaponKey);
+                    this.currentPlayerObj.weaponKey = nextWeaponKey;
+                    this.currentPlayerObj.weaponSprite.setScale(0.25);
+                    if (this.currentPlayerObj.isFacingLeft) {
+                        this.currentPlayerObj.weaponSprite.flipX = true;
+                    }
+                    this.currentPlayerObj.weaponSprite.setImmovable(true);
+                    this.currentPlayerObj.weaponSprite.body.setAllowGravity(false);
+                    this.updateHUDWeaponText();
+                }
+                if (Phaser.Input.Keyboard.JustDown(this.ak47Key)) {
+                    if (this.currentPlayerObj.weaponSprite)
+                        this.currentPlayerObj.weaponSprite.destroy();
+
+                    this.currentPlayerObj.weaponIndex = 3;
+                    const nextWeaponKey = this.currentPlayerObj.weaponList[3];
+                    this.currentPlayerObj.weaponSprite = this.physics.add.sprite(this.currentPlayerObj.sprite.x, this.currentPlayerObj.sprite.y, nextWeaponKey);
+                    this.currentPlayerObj.weaponKey = nextWeaponKey;
+                    this.currentPlayerObj.weaponSprite.setScale(0.25);
+                    if (this.currentPlayerObj.isFacingLeft) {
+                        this.currentPlayerObj.weaponSprite.flipX = true;
+                    }
+                    this.currentPlayerObj.weaponSprite.setImmovable(true);
+                    this.currentPlayerObj.weaponSprite.body.setAllowGravity(false);
+                    this.updateHUDWeaponText();
+                }
+                if (Phaser.Input.Keyboard.JustDown(this.fishGunKey)) {
+                    if (this.currentPlayerObj.weaponSprite)
+                        this.currentPlayerObj.weaponSprite.destroy();
+
+                    this.currentPlayerObj.weaponIndex = 2;
+                    const nextWeaponKey = this.currentPlayerObj.weaponList[2];
+                    this.currentPlayerObj.weaponSprite = this.physics.add.sprite(this.currentPlayerObj.sprite.x, this.currentPlayerObj.sprite.y, nextWeaponKey);
+                    this.currentPlayerObj.weaponKey = nextWeaponKey;
+                    this.currentPlayerObj.weaponSprite.setScale(0.20);
+                    if (this.currentPlayerObj.isFacingLeft) {
+                        this.currentPlayerObj.weaponSprite.flipX = true;
+                    }
+                    this.currentPlayerObj.weaponSprite.setImmovable(true);
+                    this.currentPlayerObj.weaponSprite.body.setAllowGravity(false);
+                    this.updateHUDWeaponText();
+                }
+                if (Phaser.Input.Keyboard.JustDown(this.bearHandsKey)) {
+                    if (this.currentPlayerObj.weaponSprite)
+                        this.currentPlayerObj.weaponSprite.destroy();
+
+                    this.currentPlayerObj.weaponIndex = 0;
+                    this.currentPlayerObj.weaponSprite = null;
+                    this.currentPlayerObj.weaponKey = null;
+                    this.updateHUDWeaponText();
+                }
                 /* Swapping weapons entails deleting the old weapon sprite and spawning in a new one. Also updating
                 the relevant values in the this.currentPlayerObj */
                 if (Phaser.Input.Keyboard.JustDown(this.swapWeaponKey)) {
@@ -1071,12 +1398,10 @@ class BearGame extends Phaser.Scene {
                         this.currentPlayerObj.weaponSprite.setImmovable(true);
                         this.currentPlayerObj.weaponSprite.body.setAllowGravity(false);
                     }
+                    this.updateHUDWeaponText();
                         
                 }
 
-                if (Phaser.Input.Keyboard.JustDown(this.nextPlayerKey)) {
-                    this.nextPlayer();
-                }
             }
     
         } else {
@@ -1086,6 +1411,7 @@ class BearGame extends Phaser.Scene {
             // if (this.currentPlayerObj.sprite.body) {
             //     this.currentPlayerObj.sprite.setVelocityX(0);
             // }
+
         }
 
         
@@ -1107,6 +1433,13 @@ class BearGame extends Phaser.Scene {
                     this.isCancelAttack = true;
                     this.indicatorLineGraphics.clear();
                 } else if (!this.isCancelAttack && this.input.mousePointer.leftButtonDown() && this.currentPlayerObj.sprite.body.touching.down) {
+
+                    // Player will keep moving and keep making sound if the movement keys are held down at the same time as left-click otherwise
+                    this.currentPlayerObj.sprite.setVelocity(0);
+                    if (this.walkSound) {
+                        this.walkSound.stop();
+                    }
+
                     // need to update the world point relative to the camera so that it's accurate when we use the point
                     this.input.activePointer.updateWorldPoint(this.cameras.main);
                     this.currentPlayerObj.isAiming = true;
@@ -1175,7 +1508,7 @@ const config = {
     /* Specified viewport size. The size of the game window */
     width: 800,
     height: 450,
-    scene: [Menu, MapSelect, BearGame, EndScreen],
+    scene: [Menu, Instructions, MapSelect, BearGame, EndScreen],
     physics: {
         default: 'arcade',
         arcade: {
