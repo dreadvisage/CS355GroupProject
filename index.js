@@ -47,6 +47,12 @@ class Menu extends Phaser.Scene {
         this.isMuted = false;
     }
 
+    init(data) {
+        // data is passed to this scene from map creation
+        this.isMuted = data.isMuted;
+        this.isAlreadyPlaying = data.isAlreadyPlaying;
+    }
+
     preload() {
         // Load images
         this.load.image('background', 'assets/background.jpg');
@@ -61,10 +67,14 @@ class Menu extends Phaser.Scene {
 
     create() {
         this.createBackground();
-
+        if (!this.isAlreadyPlaying) {
+            this.isAlreadyPlaying = false;
+        }
+        
         // sounds
-        if (!this.isMuted) {
+        if (!this.isMuted && !this.isAlreadyPlaying) {
             this.sound.play('main-menu-music', {loop: true});
+            this.isAlreadyPlaying = true;
         }
         
         // Add bear title image
@@ -83,13 +93,19 @@ class Menu extends Phaser.Scene {
         this.clickButton = this.add.image(400, 350, 'playButton')
             .setScale(0.6)
             .setInteractive({useHandCursor: true})
-            .on('pointerdown', () => this.scene.start("MapSelect", {isMuted: this.isMuted}));
+            .on('pointerdown', () => {
+                this.scene.start("MapSelect", {isMuted: this.isMuted});
+                this.scene.stop("Menu", {isMuted: this.isMuted});
+            });
 
         // Add settings button
         this.clickButton = this.add.image(625, 365, 'instructionsButton')
         .setScale(0.175)
         .setInteractive({useHandCursor: true})
-        .on('pointerdown', () => this.scene.start("MapSelect", {isMuted: this.isMuted}));
+        .on('pointerdown', () => {
+            this.scene.start("InstructionsPage", {isMuted: this.isMuted, isAlreadyPlaying: this.isAlreadyPlaying});
+            this.scene.stop("Menu", {isMuted: this.isMuted});
+        });
     }
 
     createBackground() {
@@ -104,6 +120,7 @@ class Menu extends Phaser.Scene {
             this.volumeButton.visible = true;
             this.muteButton.visible = false;
             this.isMuted = false;
+            this.sound.play('main-menu-music', {loop: true});
         } else {
             // Mute the game
             this.volumeButton.visible = false;
@@ -111,6 +128,47 @@ class Menu extends Phaser.Scene {
             this.isMuted = true;
             this.sound.stopAll()
         }
+    }
+}
+
+class Instructions extends Phaser.Scene {
+
+    constructor(){
+        super("InstructionsPage")
+    }
+
+    init(data) {
+        // data is passed to this scene from map creation
+        this.isMuted = data.isMuted;
+        this.isAlreadyPlaying = data.isAlreadyPlaying;
+    }
+
+    preload() {
+        // Load images
+        this.load.image('background', 'assets/background.jpg');
+        this.load.image('instructions', 'assets/instructions.png');
+        this.load.image('instructionsButton', 'assets/instructionsButton.png');
+    }
+
+    create() {
+
+        this.createBackground();
+
+        this.add.image(400, 200, 'instructions').setScale(.7);
+
+        this.clickButton = this.add.image(625, 365, 'instructionsButton')
+        .setScale(0.175)
+        .setInteractive({useHandCursor: true})
+        .on('pointerdown', () => {
+            this.scene.start("Menu", {isMuted: this.isMuted, isAlreadyPlaying: this.isAlreadyPlaying})
+            this.scene.stop("Instructions");
+        });
+    }
+
+    createBackground() {
+        this.add.image(-200, -190, 'background')
+            .setScale(1)
+            .setOrigin(0);
     }
 }
 
