@@ -22,18 +22,16 @@ const BOBBER_BOMB_EXPLOSION_DMG = 20;
 const NEXT_PLAYER_KEY = 'P';
 const NEXT_WEAPON_KEY = 'B';
 const CANCEL_ATTACK_KEY = 'ESC';
-const SPEAR_SELECT_KEY=  '1';
-const GRENADE_SELECT_KEY =  '2';
-const AK_47_SELECT_KEY = `3`;
-const PISTOL_SELECT_KEY = `4`;
-const FISH_LAUNCHER_SELECT_KEY = `5`;
+const BEAR_HANDS_KEY = 'ONE';
+const SPEAR_SELECT_KEY=  'TWO';
+const GRENADE_SELECT_KEY =  'THREE';
+const AK_47_SELECT_KEY = 'FOUR';
+const FISH_LAUNCHER_SELECT_KEY = 'FIVE';
 
 const RESET_PLAYER_MILLIS = 1000;
 const RESET_PLAYER_DELAY_MILLIS = 1000;
 const OUT_OF_BOUNDS_INTERVAL_MILLIS = 500;
 
-// 0.5 is enough to climb 2 pixels high but not 3 pixels
-// 0.6 is enough to climb 3 pixels
 const PLAYER_INCLINE_CLIMB_DIST = 1;
 
 const PLAYER_STAMINA = 80;
@@ -65,7 +63,9 @@ class Menu extends Phaser.Scene {
         this.createBackground();
 
         // sounds
-        this.sound.play('main-menu-music', {loop: true});
+        if (!this.isMuted) {
+            this.sound.play('main-menu-music', {loop: true});
+        }
         
         // Add bear title image
         this.add.image(400, 150, 'bearTitle');
@@ -83,13 +83,13 @@ class Menu extends Phaser.Scene {
         this.clickButton = this.add.image(400, 350, 'playButton')
             .setScale(0.6)
             .setInteractive({useHandCursor: true})
-            .on('pointerdown', () => this.scene.start("MapSelect"));
+            .on('pointerdown', () => this.scene.start("MapSelect", {isMuted: this.isMuted}));
 
         // Add settings button
         this.clickButton = this.add.image(625, 365, 'instructionsButton')
         .setScale(0.175)
         .setInteractive({useHandCursor: true})
-        .on('pointerdown', () => this.scene.start("MapSelect"));
+        .on('pointerdown', () => this.scene.start("MapSelect", {isMuted: this.isMuted}));
     }
 
     createBackground() {
@@ -109,6 +109,7 @@ class Menu extends Phaser.Scene {
             this.volumeButton.visible = false;
             this.muteButton.visible = true;
             this.isMuted = true;
+            this.sound.stopAll()
         }
     }
 }
@@ -119,6 +120,11 @@ class MapSelect extends Phaser.Scene {
 
     constructor(){
         super("MapSelect");
+    }
+
+    init(data) {
+        // data is passed to this scene from map creation
+        this.isMuted = data.isMuted;
     }
 
     preload()
@@ -149,7 +155,7 @@ class MapSelect extends Phaser.Scene {
             .setInteractive({useHandCursor: true})
             .on('pointerdown', () => {
                 this.registry.set('selectedMapIndex', 1);
-                this.scene.start("playGame")
+                this.scene.start("playGame", {isMuted: this.isMuted})
             });
 
 
@@ -158,7 +164,7 @@ class MapSelect extends Phaser.Scene {
             .setInteractive({useHandCursor: true})
             .on('pointerdown', () => {
                 this.registry.set('selectedMapIndex', 2);
-                this.scene.start("playGame")
+                this.scene.start("playGame", {isMuted: this.isMuted})
             });
 
 
@@ -168,7 +174,7 @@ class MapSelect extends Phaser.Scene {
             .on('pointerdown', () => {
                 this.registry.set('selectedMapIndex', 1);
                 this.sound.stopAll();
-                this.scene.start("playGame");
+                this.scene.start("playGame", {isMuted: this.isMuted});
             });
 
 
@@ -178,7 +184,7 @@ class MapSelect extends Phaser.Scene {
             .on('pointerdown', () => {
                 this.registry.set('selectedMapIndex', 2);
                 this.sound.stopAll();
-                this.scene.start("playGame")
+                this.scene.start("playGame", {isMuted: this.isMuted})
             });
     }
 
@@ -225,10 +231,6 @@ class EndScreen extends Phaser.Scene {
 /* Use a class to contain our particular scene for organization sake */
 class BearGame extends Phaser.Scene {
 
-    constructor(){
-        super("playGame");
-    }
-
     platforms;
 
     players;
@@ -254,21 +256,22 @@ class BearGame extends Phaser.Scene {
     intervalCheck;
     isCancelThrow;
 
-    cycleWeaponTextOverlay;
-    cyclePlayerTextOverlay;
-    cancelAttackTextOverlay1;
-    cancelAttackTextOverlay2;
-    deadTextOverlay;
     hud;
-    GRENADE_SELECT_KEY;
-    SPEAR_SELECT_KEY;
-    FISH_LAUNCHER_SELECT_KEY;
-    AK_47_SELECT_KEY;
-    PISTOL_SELECT_KEY;
 
     walkSound;
     walkFallTimeout;
     isFalling;
+    isMuted;
+    weaponText;
+
+    constructor(){
+        super("playGame");
+    }
+
+    init(data) {
+        // data is passed to this scene from map creation
+        this.isMuted = data.isMuted;
+    }
     
     preload() {
         // backgrounds
@@ -306,7 +309,6 @@ class BearGame extends Phaser.Scene {
         this.load.image(`spear`, `assets/spear.png`);
         this.load.image(`grenade`, `assets/bobber-bomb.png`);
         this.load.image(`AK47`,`assets/ak-47.png`);
-        this.load.image(`Pistol`,`assets/fish-gun.png`);
         
         // font for text overlays
         //this.fontsReady = false; testing this next
@@ -329,7 +331,6 @@ class BearGame extends Phaser.Scene {
             this.loadTerrainMap('map2', 5, 1);
         }
         
-      
         this.createPlayers();
         this.playerIndicatorGraphic = this.makePlayerIndicatorGraphic(this.currentPlayerObj.sprite.x, this.currentPlayerObj.sprite.y, BAR_HEALTH_FILL_COLOR, BAR_LINE_COLOR);
 
@@ -337,13 +338,21 @@ class BearGame extends Phaser.Scene {
         this.createMouseListeners();
 
         this.swapWeaponKey = this.input.keyboard.addKey(NEXT_WEAPON_KEY);
+        this.spearKey = this.input.keyboard.addKey(SPEAR_SELECT_KEY);
+        this.grenadeKey = this.input.keyboard.addKey(GRENADE_SELECT_KEY);
+        this.ak47Key = this.input.keyboard.addKey(AK_47_SELECT_KEY);
+        this.fishGunKey = this.input.keyboard.addKey(FISH_LAUNCHER_SELECT_KEY);
+        this.bearHandsKey = this.input.keyboard.addKey(BEAR_HANDS_KEY);
         this.movementKeys = this.input.keyboard.addKeys('W,UP,D,RIGHT,A,LEFT');
         this.cancelAttackKey = this.input.keyboard.addKey(CANCEL_ATTACK_KEY);
 
         // sounds
-        this.walkSound = this.sound.add('footsteps');
-        this.jumpSound = this.sound.add('jump');
-        this.sound.play('background-music', {loop: true});
+        if (!this.isMuted) {
+            this.walkSound = this.sound.add('footsteps');
+            this.jumpSound = this.sound.add('jump');
+            this.sound.play('background-music', {loop: true});
+        }
+        
 
         this.disableUserInteraction = false;
         this.stopWeaponMove = false;
@@ -357,32 +366,11 @@ class BearGame extends Phaser.Scene {
         this.hud = this.add.group();
         
         // Weapon text
-        const weaponText = this.add.text(100, 50, `Current weapon: ${this.currentPlayerObj.weaponKey}`, { font: '16px Courier', fill: '#000000' });
-        weaponText.setOrigin(0.5, 0.5);
-        weaponText.setScrollFactor(0);
-        weaponText.x = this.cameras.main.centerX;
-        //weaponText.y = this.cameras.main.centerY+100;
-        this.hud.add(weaponText);
-
-        // Add settings button
-        this.clickButton = this.add.image(30, 30,  'instructionsButton')
-        .setScale(0.1)
-        .setInteractive({useHandCursor: true})
-        .on('pointerdown', () => this.scene.start("MapSelect"));
-        this.clickButton.setScrollFactor(0);
-
-        // Add Mute Button
-
-        //Add weapon selection buttons
-        this.clickButton = this.add.image(30,30, `spear`)
-        .setScale(0.1)
-        .setInteractive({useHandCursor: true})
-        .on(`pointerdown`, () => this.AK_47_SELECT_KEY)
-        
-        
-        this.cycleWeaponTextOverlay = this.add.text(300, 300, `Use the \"${NEXT_WEAPON_KEY}\" key to cycle weapons`, { font: '16px Courier', fill: '#000000' }).setOrigin(0).setScale(1);
-        this.cancelAttackTextOverlay1 = this.add.text(240, 320, `When holding left-click, you can right-click`, { font: '16px Courier', fill: '#000000' }).setOrigin(0).setScale(1);
-        this.cancelAttackTextOverlay2 = this.add.text(240, 340, `(or press the ESC key) to cancel your attack`, { font: '16px Courier', fill: '#000000' }).setOrigin(0).setScale(1);
+        this.weaponText = this.add.text(100, 50, `Current weapon: ${this.currentPlayerObj.weaponKey ? this.currentPlayerObj.weaponKey : "Bear Hands"}`, { font: '16px Courier', fill: '#000000' });
+        this.weaponText.setOrigin(0.5, 0.5);
+        this.weaponText.setScrollFactor(0);
+        this.weaponText.x = this.cameras.main.centerX;
+        this.hud.add(this.weaponText);
     }
 
     update() {
@@ -564,11 +552,33 @@ class BearGame extends Phaser.Scene {
             this.lastPlayerPosition = {x: this.currentPlayerObj.sprite.x, y: this.currentPlayerObj.sprite.y};
             this.currentPlayerObj.stamina = PLAYER_STAMINA;
             this.canPlayerMove = true;
+            this.updateHUDWeaponText();
         } else {
             this.cameras.main.stopFollow();
             this.currentPlayerObj = null;
         }
         
+    }
+
+    updateHUDWeaponText() {
+        let text;
+        switch (this.currentPlayerObj.weaponKey) {
+            case 'bobber-bomb':
+                text = "Bobber Bomb";
+                break;
+            case 'fish-gun':
+                text = "Fish Gun";
+                break;
+            case 'ak-47':
+                text = "Ak-47";
+                break;
+            case 'spear':
+                text = "Spear";
+                break;
+            default:
+                text = "Bear Hands";
+        }
+        this.weaponText.setText(`Current weapon: ${text}`);
     }
 
     killPlayer(playerObj) {
@@ -711,8 +721,10 @@ class BearGame extends Phaser.Scene {
         this.cameras.main.startFollow(projectile, true);
 
         // sounds
-        this.sound.play('grenade-pull-pin');
-
+        if (!this.isMuted) {
+            this.sound.play('grenade-pull-pin');
+        }
+        
         /* Will disable gravity entirely for the projectiles. More for bullet-style projectiles */
         // projectile.body.setAllowGravity(false);
         
@@ -743,7 +755,9 @@ class BearGame extends Phaser.Scene {
         this.cameras.main.startFollow(projectile, true);
 
         // sounds
-        this.sound.play('fish-gun-shoot');
+        if (!this.isMuted) {
+            this.sound.play('fish-gun-shoot');
+        }
 
         this.physics.add.collider(projectile, this.platforms, this.terrainExplosionCallback, this.terrainProcessCallback, this);
         this.playerObjects.forEach(obj => {
@@ -803,8 +817,10 @@ class BearGame extends Phaser.Scene {
         this.cameras.main.startFollow(projectile, true);
 
         // sounds
-        this.sound.play('gun-shoot');
-
+        if (!this.isMuted) {
+            this.sound.play('gun-shoot');
+        }
+        
         // Gives a bullet-style behavior by ignoring gravity.
         projectile.body.setAllowGravity(false);
         
@@ -851,7 +867,10 @@ class BearGame extends Phaser.Scene {
         }
 
         // sounds
-        this.sound.play('spear-swing');
+        if (!this.isMuted) {
+            this.sound.play('spear-swing');
+        }
+        
 
         // This block produces a quick spear jab forward animation
         const animation_duration_millis = 200;
@@ -977,17 +996,16 @@ class BearGame extends Phaser.Scene {
 
 
         // sounds
-        this.sound.play('bullet-hit');
+        if (!this.isMuted) {
+            this.sound.play('bullet-hit');
+        }
 
         this.playerObjects.forEach(playerObj => {
             if (playerObj.sprite === object2) {
                 const newHealth = playerObj.health - BOBBER_BOMB_EXPLOSION_DMG;
                 if (newHealth <= 0) {
                     this.killPlayer(playerObj);
-                    
-                    if (!this.deadTextOverlay)
-                        this.deadTextOverlay = this.add.text(360, 360, `${playerObj.id} IS DEAD`, { font: '20px Courier', fill: '#ff0000' }).setOrigin(0).setScale(1);
-                        this.scene.start("EndScreen");
+                    // this.scene.start("EndScreen");
                 } else {
                     playerObj.health = newHealth;
                 }
@@ -1031,10 +1049,7 @@ class BearGame extends Phaser.Scene {
                 const newHealth = playerObj.health - BOBBER_BOMB_EXPLOSION_DMG;
                 if (newHealth <= 0) {
                     this.killPlayer(playerObj);
-                    
-                    if (!this.deadTextOverlay)
-                        this.deadTextOverlay = this.add.text(360, 360, `${playerObj.id} IS DEAD`, { font: '20px Courier', fill: '#ff0000' }).setOrigin(0).setScale(1);
-                        this.scene.start("EndScreen");
+                        // this.scene.start("EndScreen");
                 } else {
                     playerObj.health = newHealth;
                 }
@@ -1077,7 +1092,9 @@ class BearGame extends Phaser.Scene {
         });
 
         // sounds
-        this.sound.play('bobber-bomb-explode');
+        if (!this.isMuted) {
+            this.sound.play('bobber-bomb-explode');
+        }
 
         // destroy bobber-bomb
         object1.destroy();
@@ -1123,7 +1140,7 @@ class BearGame extends Phaser.Scene {
 
                     if (this.canPlayerMove) {
                         this.currentPlayerObj.sprite.setVelocityX(-160);
-                        if (!this.walkSound.isPlaying) {
+                        if (this.walkSound && !this.walkSound.isPlaying) {
                             this.walkSound.play();
                         }
 
@@ -1133,7 +1150,9 @@ class BearGame extends Phaser.Scene {
                         }
                     } else {
                         this.currentPlayerObj.sprite.setVelocityX(0);
-                        this.walkSound.pause();
+                        if (this.walkSound) {
+                            this.walkSound.pause()
+                        }
                     }  
                     
                 } else if (this.movementKeys.RIGHT.isDown || this.movementKeys.D.isDown) {
@@ -1147,7 +1166,7 @@ class BearGame extends Phaser.Scene {
 
                     if (this.canPlayerMove) {
                         this.currentPlayerObj.sprite.setVelocityX(160);
-                        if (!this.walkSound.isPlaying) {
+                        if (this.walkSound && !this.walkSound.isPlaying) {
                             this.walkSound.play();
                         }
                         
@@ -1157,26 +1176,103 @@ class BearGame extends Phaser.Scene {
                         }
                     } else {
                         this.currentPlayerObj.sprite.setVelocityX(0);
-                        this.walkSound.pause();
+                        if (this.walkSound) {
+                            this.walkSound.pause();
+                        }
                     }
                 } else {
                     this.currentPlayerObj.sprite.setVelocityX(0);
-                    this.walkSound.pause();
+                    if (this.walkSound) {
+                        this.walkSound.pause();
+                    }
                 }
 
                 // if the player is touching the ground, they can jump again so we stop the sound.
-                if (this.currentPlayerObj.sprite.body.touching.down) {
+                if (this.jumpSound && this.currentPlayerObj.sprite.body.touching.down) {
                     this.jumpSound.stop();
                 }
 
                 // This block controls jumping
                 if ((this.movementKeys.UP.isDown || this.movementKeys.W.isDown) && this.currentPlayerObj.sprite.body.touching.down) {
                     this.currentPlayerObj.sprite.setVelocityY(-250);
-                    if (!this.jumpSound.isPlaying) {
+                    if (this.jumpSound && !this.jumpSound.isPlaying) {
                         this.jumpSound.play();
                     }
                 }
-                
+
+                if (Phaser.Input.Keyboard.JustDown(this.spearKey)) {
+                    if (this.currentPlayerObj.weaponSprite)
+                        this.currentPlayerObj.weaponSprite.destroy();
+
+                    this.currentPlayerObj.weaponIndex = 4;
+                    const nextWeaponKey = this.currentPlayerObj.weaponList[4];
+                    this.currentPlayerObj.weaponSprite = this.physics.add.sprite(this.currentPlayerObj.sprite.x, this.currentPlayerObj.sprite.y, nextWeaponKey);
+                    this.currentPlayerObj.weaponKey = nextWeaponKey;
+                    this.currentPlayerObj.weaponSprite.setScale(0.25);
+                    if (this.currentPlayerObj.isFacingLeft) {
+                        this.currentPlayerObj.weaponSprite.flipX = true;
+                    }
+                    this.currentPlayerObj.weaponSprite.setImmovable(true);
+                    this.currentPlayerObj.weaponSprite.body.setAllowGravity(false);
+                    this.updateHUDWeaponText();
+                }
+                if (Phaser.Input.Keyboard.JustDown(this.grenadeKey)) {
+                    if (this.currentPlayerObj.weaponSprite)
+                        this.currentPlayerObj.weaponSprite.destroy();
+
+                    this.currentPlayerObj.weaponIndex = 1;
+                    const nextWeaponKey = this.currentPlayerObj.weaponList[1];
+                    this.currentPlayerObj.weaponSprite = this.physics.add.sprite(this.currentPlayerObj.sprite.x, this.currentPlayerObj.sprite.y, nextWeaponKey);
+                    this.currentPlayerObj.weaponKey = nextWeaponKey;
+                    this.currentPlayerObj.weaponSprite.setScale(0.25);
+                    if (this.currentPlayerObj.isFacingLeft) {
+                        this.currentPlayerObj.weaponSprite.flipX = true;
+                    }
+                    this.currentPlayerObj.weaponSprite.setImmovable(true);
+                    this.currentPlayerObj.weaponSprite.body.setAllowGravity(false);
+                    this.updateHUDWeaponText();
+                }
+                if (Phaser.Input.Keyboard.JustDown(this.ak47Key)) {
+                    if (this.currentPlayerObj.weaponSprite)
+                        this.currentPlayerObj.weaponSprite.destroy();
+
+                    this.currentPlayerObj.weaponIndex = 3;
+                    const nextWeaponKey = this.currentPlayerObj.weaponList[3];
+                    this.currentPlayerObj.weaponSprite = this.physics.add.sprite(this.currentPlayerObj.sprite.x, this.currentPlayerObj.sprite.y, nextWeaponKey);
+                    this.currentPlayerObj.weaponKey = nextWeaponKey;
+                    this.currentPlayerObj.weaponSprite.setScale(0.25);
+                    if (this.currentPlayerObj.isFacingLeft) {
+                        this.currentPlayerObj.weaponSprite.flipX = true;
+                    }
+                    this.currentPlayerObj.weaponSprite.setImmovable(true);
+                    this.currentPlayerObj.weaponSprite.body.setAllowGravity(false);
+                    this.updateHUDWeaponText();
+                }
+                if (Phaser.Input.Keyboard.JustDown(this.fishGunKey)) {
+                    if (this.currentPlayerObj.weaponSprite)
+                        this.currentPlayerObj.weaponSprite.destroy();
+
+                    this.currentPlayerObj.weaponIndex = 2;
+                    const nextWeaponKey = this.currentPlayerObj.weaponList[2];
+                    this.currentPlayerObj.weaponSprite = this.physics.add.sprite(this.currentPlayerObj.sprite.x, this.currentPlayerObj.sprite.y, nextWeaponKey);
+                    this.currentPlayerObj.weaponKey = nextWeaponKey;
+                    this.currentPlayerObj.weaponSprite.setScale(0.20);
+                    if (this.currentPlayerObj.isFacingLeft) {
+                        this.currentPlayerObj.weaponSprite.flipX = true;
+                    }
+                    this.currentPlayerObj.weaponSprite.setImmovable(true);
+                    this.currentPlayerObj.weaponSprite.body.setAllowGravity(false);
+                    this.updateHUDWeaponText();
+                }
+                if (Phaser.Input.Keyboard.JustDown(this.bearHandsKey)) {
+                    if (this.currentPlayerObj.weaponSprite)
+                        this.currentPlayerObj.weaponSprite.destroy();
+
+                    this.currentPlayerObj.weaponIndex = 0;
+                    this.currentPlayerObj.weaponSprite = null;
+                    this.currentPlayerObj.weaponKey = null;
+                    this.updateHUDWeaponText();
+                }
                 /* Swapping weapons entails deleting the old weapon sprite and spawning in a new one. Also updating
                 the relevant values in the this.currentPlayerObj */
                 if (Phaser.Input.Keyboard.JustDown(this.swapWeaponKey)) {
@@ -1227,6 +1323,7 @@ class BearGame extends Phaser.Scene {
                         this.currentPlayerObj.weaponSprite.setImmovable(true);
                         this.currentPlayerObj.weaponSprite.body.setAllowGravity(false);
                     }
+                    this.updateHUDWeaponText();
                         
                 }
 
@@ -1264,7 +1361,9 @@ class BearGame extends Phaser.Scene {
 
                     // Player will keep moving and keep making sound if the movement keys are held down at the same time as left-click otherwise
                     this.currentPlayerObj.sprite.setVelocity(0);
-                    this.walkSound.stop();
+                    if (this.walkSound) {
+                        this.walkSound.stop();
+                    }
 
                     // need to update the world point relative to the camera so that it's accurate when we use the point
                     this.input.activePointer.updateWorldPoint(this.cameras.main);
