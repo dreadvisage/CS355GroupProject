@@ -17,6 +17,11 @@ const BOBBER_BOMB_EXPLOSION_DMG = 20;
 const NEXT_PLAYER_KEY = 'P';
 const NEXT_WEAPON_KEY = 'B';
 const CANCEL_ATTACK_KEY = 'ESC';
+const SPEAR_SELECT_KEY=  '1';
+const GRENADE_SELECT_KEY =  '2';
+const AK_47_SELECT_KEY = `3`;
+const PISTOL_SELECT_KEY = `4`;
+const FISH_LAUNCHER_SELECT_KEY = `5`;
 
 const RESET_PLAYER_MILLIS = 1000;
 const RESET_PLAYER_DELAY_MILLIS = 1000;
@@ -243,6 +248,11 @@ class BearGame extends Phaser.Scene {
     cancelAttackTextOverlay2;
     deadTextOverlay;
     hud;
+    GRENADE_SELECT_KEY;
+    SPEAR_SELECT_KEY;
+    FISH_LAUNCHER_SELECT_KEY;
+    AK_47_SELECT_KEY;
+    PISTOL_SELECT_KEY;
 
     walkSound;
     walkFallTimeout;
@@ -281,6 +291,10 @@ class BearGame extends Phaser.Scene {
         this.load.image(`settings`, `assets/settingsButton.png`);
         this.load.image(`volume` , `assets/volumebutton.png`) ;
         this.load.image(`mute`, `assets/mutebutton.png`); 
+        this.load.image(`spear`, `assets/spear.png`);
+        this.load.image(`grenade`, `assets/bobber-bomb.png`);
+        this.load.image(`AK47`,`assets/ak-47.png`);
+        this.load.image(`Pistol`,`assets/fish-gun.png`);
         
         // font for text overlays
         //this.fontsReady = false; testing this next
@@ -343,6 +357,15 @@ class BearGame extends Phaser.Scene {
         .setInteractive({useHandCursor: true})
         .on('pointerdown', () => this.scene.start("MapSelect"));
         this.clickButton.setScrollFactor(0);
+
+        // Add Mute Button
+
+        //Add weapon selection buttons
+        this.clickButton = this.add.image(30,30, `spear`)
+        .setScale(0.1)
+        .setInteractive({useHandCursor: true})
+        .on(`pointerdown`, () => this.AK_47_SELECT_KEY)
+        
         
         this.cycleWeaponTextOverlay = this.add.text(300, 300, `Use the \"${NEXT_WEAPON_KEY}\" key to cycle weapons`, { font: '16px Courier', fill: '#000000' }).setOrigin(0).setScale(1);
         this.cyclePlayerTextOverlay = this.add.text(300, 320, `Use the \"${NEXT_PLAYER_KEY}\" key to cycle players`, { font: '16px Courier', fill: '#000000' }).setOrigin(0).setScale(1);
