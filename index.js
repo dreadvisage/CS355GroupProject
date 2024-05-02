@@ -1,5 +1,5 @@
-const WORLD_WIDTH = 1252;
-const WORLD_HEIGHT = 646;
+const WORLD_WIDTH = 1252 * 1.5;
+const WORLD_HEIGHT = 646 * 1.5;
 
 const BAR_WIDTH = 80;
 const BAR_HEIGHT = 10;
@@ -136,6 +136,8 @@ class MapSelect extends Phaser.Scene {
         this.load.image('back4', 'assets/back4.png');
         this.load.image('map1', 'assets/maps/map1.png');
         this.load.image('map2', 'assets/maps/map2.png');
+        this.load.image('map3', 'assets/maps/map3Draft2.png');
+        this.load.image('map4', 'assets/maps/map4Draft.png');
     }
 
     create() {
@@ -155,7 +157,8 @@ class MapSelect extends Phaser.Scene {
             .setInteractive({useHandCursor: true})
             .on('pointerdown', () => {
                 this.registry.set('selectedMapIndex', 1);
-                this.scene.start("playGame", {isMuted: this.isMuted})
+                this.sound.stopAll();
+                this.scene.start("playGame");
             });
 
 
@@ -165,26 +168,29 @@ class MapSelect extends Phaser.Scene {
             .on('pointerdown', () => {
                 this.registry.set('selectedMapIndex', 2);
                 this.scene.start("playGame", {isMuted: this.isMuted})
+                this.scene.stop('MapSelect')
             });
 
 
-        this.clickButton = this.add.image(235, 300, 'map1')
-            .setScale(0.65)
+        this.clickButton = this.add.image(235, 300, 'map3')
+            .setScale(0.45)
             .setInteractive({useHandCursor: true})
             .on('pointerdown', () => {
-                this.registry.set('selectedMapIndex', 1);
+                this.registry.set('selectedMapIndex', 3);
                 this.sound.stopAll();
                 this.scene.start("playGame", {isMuted: this.isMuted});
+                this.scene.stop('MapSelect');
             });
 
 
-        this.clickButton = this.add.image(565, 300, 'map2')
-            .setScale(0.65)
+        this.clickButton = this.add.image(565, 300, 'map4')
+            .setScale(0.45)
             .setInteractive({useHandCursor: true})
             .on('pointerdown', () => {
-                this.registry.set('selectedMapIndex', 2);
+                this.registry.set('selectedMapIndex', 4);
                 this.sound.stopAll();
                 this.scene.start("playGame", {isMuted: this.isMuted})
+                this.scene.stop('MapSelect');
             });
     }
 
@@ -218,7 +224,10 @@ class EndScreen extends Phaser.Scene {
         this.clickButton = this.add.image(400, 405, 'menuButton')
             .setScale(0.4)
             .setInteractive({useHandCursor: true})
-            .on('pointerdown', () => this.scene.start("Menu"));
+            .on('pointerdown', () => {
+                this.scene.stop('playGame');
+                this.scene.start("Menu")
+            });
     }
 
     createBackground() {
@@ -280,6 +289,8 @@ class BearGame extends Phaser.Scene {
         // maps
         this.load.image('map1', 'assets/maps/map1.png');
         this.load.image('map2', 'assets/maps/map2.png');
+        this.load.image('map3', 'assets/maps/map3Draft2.png');
+        this.load.image('map4', 'assets/maps/map4Draft.png');
 
         // player sprites
         this.load.image('bear1', 'assets/bear1.png');
@@ -330,7 +341,13 @@ class BearGame extends Phaser.Scene {
         else if(selectedMapIndex === 2){
             this.loadTerrainMap('map2', 5, 1);
         }
-        
+        else if(selectedMapIndex === 3){
+            this.loadTerrainMap('map3', 5, 1);
+        }
+        else if(selectedMapIndex === 4){
+            this.loadTerrainMap('map4', 5, 1);
+        }
+      
         this.createPlayers();
         this.playerIndicatorGraphic = this.makePlayerIndicatorGraphic(this.currentPlayerObj.sprite.x, this.currentPlayerObj.sprite.y, BAR_HEALTH_FILL_COLOR, BAR_LINE_COLOR);
 
@@ -472,7 +489,7 @@ class BearGame extends Phaser.Scene {
 
     createBackground() {
         this.add.image(0, 0, 'background')
-        .setScale(1)
+        .setScale(1.5)
         .setOrigin(0);
 
         this.physics.world.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
@@ -1433,7 +1450,7 @@ const config = {
     /* Specified viewport size. The size of the game window */
     width: 800,
     height: 450,
-    scene: [Menu, MapSelect, BearGame, EndScreen],
+    scene: [Menu, Instructions, MapSelect, BearGame, EndScreen],
     physics: {
         default: 'arcade',
         arcade: {
