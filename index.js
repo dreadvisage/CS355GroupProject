@@ -152,46 +152,46 @@ class MapSelect extends Phaser.Scene {
 
         /*Each button corresponds to a map. If you click on a map, an integer is saved to
          the "registry" which will be used later. The button also moves user to the next scene.*/
-        this.clickButton = this.add.image(235, 85, 'map1')
-            .setScale(0.65)
-            .setInteractive({useHandCursor: true})
-            .on('pointerdown', () => {
-                this.registry.set('selectedMapIndex', 1);
-                this.sound.stopAll();
-                this.scene.start("playGame");
-            });
+         this.clickButton = this.add.image(235, 85, 'map1')
+         .setScale(0.65)
+         .setInteractive({useHandCursor: true})
+         .on('pointerdown', () => {
+             this.registry.set('selectedMapIndex', 1);
+             this.sound.stopAll();
+             this.scene.start("playGame");
+         });
 
 
-        this.clickButton = this.add.image(565, 85, 'map2')
-            .setScale(0.65)
-            .setInteractive({useHandCursor: true})
-            .on('pointerdown', () => {
-                this.registry.set('selectedMapIndex', 2);
-                this.scene.start("playGame", {isMuted: this.isMuted})
-                this.scene.stop('MapSelect')
-            });
+     this.clickButton = this.add.image(565, 85, 'map2')
+         .setScale(0.65)
+         .setInteractive({useHandCursor: true})
+         .on('pointerdown', () => {
+             this.registry.set('selectedMapIndex', 2);
+             this.scene.start("playGame", {isMuted: this.isMuted})
+             this.scene.stop('MapSelect')
+         });
 
 
-        this.clickButton = this.add.image(235, 300, 'map3')
-            .setScale(0.45)
-            .setInteractive({useHandCursor: true})
-            .on('pointerdown', () => {
-                this.registry.set('selectedMapIndex', 3);
-                this.sound.stopAll();
-                this.scene.start("playGame", {isMuted: this.isMuted});
-                this.scene.stop('MapSelect');
-            });
+     this.clickButton = this.add.image(235, 300, 'map3')
+         .setScale(0.45)
+         .setInteractive({useHandCursor: true})
+         .on('pointerdown', () => {
+             this.registry.set('selectedMapIndex', 3);
+             this.sound.stopAll();
+             this.scene.start("playGame", {isMuted: this.isMuted});
+             this.scene.stop('MapSelect');
+         });
 
 
-        this.clickButton = this.add.image(565, 300, 'map4')
-            .setScale(0.45)
-            .setInteractive({useHandCursor: true})
-            .on('pointerdown', () => {
-                this.registry.set('selectedMapIndex', 4);
-                this.sound.stopAll();
-                this.scene.start("playGame", {isMuted: this.isMuted})
-                this.scene.stop('MapSelect');
-            });
+     this.clickButton = this.add.image(565, 300, 'map4')
+         .setScale(0.45)
+         .setInteractive({useHandCursor: true})
+         .on('pointerdown', () => {
+             this.registry.set('selectedMapIndex', 4);
+             this.sound.stopAll();
+             this.scene.start("playGame", {isMuted: this.isMuted})
+             this.scene.stop('MapSelect');
+         });
     }
 
     createBackground() {
