@@ -268,8 +268,7 @@ class EndScreen extends Phaser.Scene {
     preload()
     {
         this.load.image('background', 'assets/background.jpg');
-        this.load.image('player1Win', 'assets/player1Win.png');
-        this.load.image('player2Win', 'assets/player2Win.png');
+        this.load.image('playerWin', 'assets/winScreen.png');
         this.load.image('menuButton', 'assets/menuButton.png');
     }
 
@@ -277,14 +276,13 @@ class EndScreen extends Phaser.Scene {
     {
         this.createBackground();
 
-        this.add.image(400, 185, 'player1Win').setScale(0.7);
+        this.add.image(400, 185, 'playerWin').setScale(0.7);
 
         this.clickButton = this.add.image(400, 405, 'menuButton')
             .setScale(0.4)
             .setInteractive({useHandCursor: true})
             .on('pointerdown', () => {
-                this.scene.stop('playGame');
-                this.scene.start("Menu")
+                window.location.reload();
             });
     }
 
@@ -674,6 +672,7 @@ class BearGame extends Phaser.Scene {
         
         // delete player from player objects array
         this.playerObjects.splice(idx, 1);
+        this.scene.start("EndScreen");
     }
 
 
