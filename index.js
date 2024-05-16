@@ -246,8 +246,7 @@ class EndScreen extends Phaser.Scene {
             .setScale(0.4)
             .setInteractive({useHandCursor: true})
             .on('pointerdown', () => {
-                this.scene.stop('playGame');
-                this.scene.start("Menu")
+                window.location.reload();
             });
     }
 
