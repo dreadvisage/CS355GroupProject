@@ -355,7 +355,7 @@ class BearGame extends Phaser.Scene {
         // weapon sprites
         this.load.image('bobber-bomb', 'assets/bobber-bomb.png');
         this.load.image('fish-gun', 'assets/fish-gun.png');
-        this.load.image('ak-47', 'assets/ak-47.png');
+        this.load.image('ak-47', 'assets/revolver.png');
         this.load.image('spear', 'assets/spear.png');
 
         // sounds
@@ -375,7 +375,7 @@ class BearGame extends Phaser.Scene {
         this.load.image(`mute`, `assets/mutebutton.png`); 
         this.load.image(`spear`, `assets/spear.png`);
         this.load.image(`grenade`, `assets/bobber-bomb.png`);
-        this.load.image(`AK47`,`assets/ak-47.png`);
+        this.load.image(`AK47`,`assets/revolver.png`);
         
         // font for text overlays
         //this.fontsReady = false; testing this next
@@ -1375,7 +1375,7 @@ class BearGame extends Phaser.Scene {
                             }
                             break;
                         case 'ak-47':
-                            this.currentPlayerObj.weaponSprite.setScale(0.25);
+                            this.currentPlayerObj.weaponSprite.setScale(0.15);
                             if (this.currentPlayerObj.isFacingLeft) {
                                 this.currentPlayerObj.weaponSprite.flipX = true;
                             }
