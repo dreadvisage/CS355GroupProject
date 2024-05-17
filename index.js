@@ -554,7 +554,14 @@ class BearGame extends Phaser.Scene {
     createPlayers() {
         this.playerObjects = [];
 
-        this.createPlayer(450, 420, "bear1", "Player1");
+        /* The first starting player this player. Ensure to update both 
+        the spawn position and set the lastPlayerPosition to ensure
+        proper stamina bar fill */
+        const firstPlayerStartX = 200; 
+        const firstPlayerStartY = 300;
+        this.createPlayer(firstPlayerStartX, firstPlayerStartY, "bear1", "Player1");
+        this.lastPlayerPosition = {x: firstPlayerStartX, y: firstPlayerStartY};
+
         this.createPlayer(750, 100, "bear2", "Player2");
 
         // make each player able to collide with the platforms
@@ -565,8 +572,6 @@ class BearGame extends Phaser.Scene {
         // set current player to be the first in the list
         this.currentPlayerIndex = 0;
         this.currentPlayerObj = this.playerObjects[this.currentPlayerIndex];
-
-        this.lastPlayerPosition = {x: 450, y: 420};
     }
 
     // Key is the texture key. ID is the player "name"
