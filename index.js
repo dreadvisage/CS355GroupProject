@@ -567,12 +567,12 @@ class BearGame extends Phaser.Scene {
         /* The first starting player this player. Ensure to update both 
         the spawn position and set the lastPlayerPosition to ensure
         proper stamina bar fill */
-        const firstPlayerStartX = 200; 
-        const firstPlayerStartY = 300;
+        const firstPlayerStartX = 50; 
+        const firstPlayerStartY = 200;
         this.createPlayer(firstPlayerStartX, firstPlayerStartY, "bear1", "Player1");
         this.lastPlayerPosition = {x: firstPlayerStartX, y: firstPlayerStartY};
 
-        this.createPlayer(750, 100, "bear2", "Player2");
+        this.createPlayer(1825, 200, "bear2", "Player2");
 
         // make each player able to collide with the platforms
         this.playerObjects.forEach(obj => {
@@ -657,10 +657,10 @@ class BearGame extends Phaser.Scene {
                 text = "Bobber Bomb";
                 break;
             case 'fish-gun':
-                text = "Fish Gun";
+                text = "Bobber Launcher";
                 break;
             case 'ak-47':
-                text = "Ak-47";
+                text = "Fish Revolver";
                 break;
             case 'spear':
                 text = "Spear";
