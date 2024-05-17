@@ -192,8 +192,8 @@ class MapSelect extends Phaser.Scene {
         this.load.image('back2', 'assets/back2.png');
         this.load.image('back3', 'assets/back3.png');
         this.load.image('back4', 'assets/back4.png');
-        this.load.image('map1', 'assets/maps/map1.png');
-        this.load.image('map2', 'assets/maps/map2.png');
+        this.load.image('map1', 'assets/maps/map5.png');
+        this.load.image('map2', 'assets/maps/map6.png');
         this.load.image('map3', 'assets/maps/map3Draft2.png');
         this.load.image('map4', 'assets/maps/map4Draft.png');
     }
@@ -211,20 +211,22 @@ class MapSelect extends Phaser.Scene {
         /*Each button corresponds to a map. If you click on a map, an integer is saved to
          the "registry" which will be used later. The button also moves user to the next scene.*/
          this.clickButton = this.add.image(235, 85, 'map1')
-         .setScale(0.65)
+         .setScale(0.45)
          .setInteractive({useHandCursor: true})
          .on('pointerdown', () => {
              this.registry.set('selectedMapIndex', 1);
              this.sound.stopAll();
-             this.scene.start("playGame");
+             this.scene.start("playGame", {isMuted: this.isMuted})
+             this.scene.stop('MapSelect')
          });
 
 
      this.clickButton = this.add.image(565, 85, 'map2')
-         .setScale(0.65)
+         .setScale(0.45)
          .setInteractive({useHandCursor: true})
          .on('pointerdown', () => {
              this.registry.set('selectedMapIndex', 2);
+             this.sound.stopAll();
              this.scene.start("playGame", {isMuted: this.isMuted})
              this.scene.stop('MapSelect')
          });
@@ -476,6 +478,14 @@ class BearGame extends Phaser.Scene {
         this.playerIndicatorGraphic.y = this.currentPlayerObj.sprite.y - BAR_PLAYER_INDICATOR_DIST_ABOVE_HEAD;
 
         this.updatePlayerStamina();
+
+        
+        this.playerObjects.forEach(obj => {
+            if (!this.physics.world.bounds.contains(obj.sprite.x, obj.sprite.y)) {
+                this.killPlayer(obj);
+            }
+        });
+        
     }
 
     
@@ -580,10 +590,12 @@ class BearGame extends Phaser.Scene {
         .setScale(0.18)
         .refreshBody();
         sprite.setBounce(0);
-        sprite.setCollideWorldBounds(true);
+        // sprite.setCollideWorldBounds(true);
         sprite.setPushable(false);
         // slows down the player if they are "pushed" away
         sprite.setDrag(100);
+        sprite.body.setCollideWorldBounds(true);
+        sprite.body.world.setBoundsCollision(true, true, true, false);
 
         // Center health bar and set it to be a little above the player's head
         const healthBar = this.makeBar(sprite.x - BAR_WIDTH/2, sprite.y - BAR_HEALTH_DIST_ABOVE_HEAD, BAR_HEALTH_FILL_COLOR, BAR_LINE_COLOR);
