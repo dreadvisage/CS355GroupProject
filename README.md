@@ -1,4 +1,7 @@
-# Project Setup Preface
+# Bear Warfare
+![Bear Warfare](readme_images/Screenshot_20241022_163903.png)
+
+## Project Setup Preface
 This project requires setting up a local web server as a way to safely and securely serve files. [Phaser](https://phaser.io/) is the JavaScript game development library of choice for this project. 
 
 ## XAMPP
@@ -7,13 +10,17 @@ The recommended web server for this project is XAMPP. If you don't know how to i
 * Arch Linux: sudo xampp start
 
 Once XAMPP is installed, clone this repository to a location of your choosing. See next section considerations on where you should clone the repository to.
-* `git clone https://github.com/dreadvisage/CS355GroupProject`
+* `git clone https://github.com/dreadvisage/Bear-Warfare`
 
-## Making the Website Accessible by XAMPP
-You have two main options when helping XAMPP find this website. Moving the project folder to `<XAMPP_root_path>/htdocs/CS355GroupProject` or by creating a soft link from `<XAMPP_root_path>/htdocs/soft_link` to a folder location somewhere else on your system.
-* Option 1: Moving this project folder to XAMPP: XAMPP needs to be able to find this project. By default, XAMPP searches in <XAMPP_root_path>/htdocs . Within htdocs, you'll need to place this project "CS268GroupProject" so that the file structure looks like `<XAMPP_root_path>/htdocs/CS355GroupProject`. Once that is done, you must navigate to the website by going to `localhost/CS355GroupProject`.
-* Option 2: Soft link creation: I recommend that we instead create soft link from inside the htdocs directory. You can create a soft link that points to another location on your system where you have this project. This soft link can be named whatever you wish, and the soft link name will be used to navigate to this website. The soft link file structure looks like `<XAMPP_root_path>/htdocs/soft_link_name` and can used in a web browser. e.g. `localhost/soft_link_name`. If you don't know how to create a soft link, use a guide for your specific operating system. Nevertheless, you must create a soft link from inside XAMPP's `htdocs` directory to this project's root directory. Once that is done, you can navigate to the website by going to `localhost/soft_link_name`. 
-    * Here in an example command for soft link creation for UNIX-based operating systems. `ln -s <this_project_path/CS355GroupProject> <XAMPP_root_path>/htdocs/soft_link_name`. By doing this, you can navigate to the website by using the soft link name. e.g. `localhost/soft_link_name`.
+## Making the Website Accessible by XAMPP (Required)
+* You have two main options when helping XAMPP find this website. Options 1 or 2.
+    * Moving the project folder to `<XAMPP_install_path>/XAMPP/htdocs/Bear-Warfare` 
+    * Creating a soft link at `<XAMPP_install_path>/XAMPP/htdocs/super_cool_soft_link` and having this project folder be installed most anywhere on your system.
+* Here in an example command for UNIX-based operating systems for soft-link creation. 
+    * `ln -s <this_project_path>/Bear-Warfare <XAMPP_install_path>/XAMPP/htdocs/<your_soft_link_name>`. 
+    * By doing this, you can navigate to the website by using the soft link name. e.g. `localhost/<your_soft_link_name>`.
+
+Note. Please ensure XAMPP has permissions to access this project's directory. Otherwise, you won't be able to run the website.
 
 ## Visual Studio Code Development Setup
 The recommended IDE for this project's development is Visual Studio Code. If you don't know how to install VSCode, find a guide on the internet for your operating system. Using VSCode, feel free to open the CS355GroupProject folder that you cloned. Once VSCode is installed, install the recommended extensions.
